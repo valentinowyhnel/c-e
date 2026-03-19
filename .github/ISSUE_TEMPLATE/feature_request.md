@@ -20,6 +20,8 @@ Explain the problem being solved.
 - Protocol / contract impact:
 - Security impact:
 - Docs / runbook impact:
+- GitLab CI / supply-chain impact:
+- Canary / rollback impact:
 
 ## Acceptance Criteria
 

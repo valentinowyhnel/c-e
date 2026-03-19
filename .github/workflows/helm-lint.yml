@@ -5,21 +5,53 @@ on:
     paths:
       - "helm/**"
       - ".github/workflows/helm-lint.yml"
+      - "scripts/ci/helm_validate.sh"
+  push:
+    branches:
+      - main
+    paths:
+      - "helm/**"
+      - ".github/workflows/helm-lint.yml"
+      - "scripts/ci/helm_validate.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: helm-lint-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  lint:
+  lint-and-render:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Helm
         uses: azure/setup-helm@v4
-      - name: Helm lint
+        with:
+          version: v3.16.1
+
+      - name: Lint charts
+        run: bash scripts/ci/helm_validate.sh
+
+      - name: Render charts
         run: |
+          mkdir -p artifacts/helm
           found=0
-          for chart in helm/cortex-*/; do
+          for chart in helm/cortex-* helm/cortex-ci-smoke; do
             if [ -d "$chart" ]; then
               found=1
-              helm lint "$chart" --strict
+              helm template "$(basename "$chart")" "$chart" > "artifacts/helm/$(basename "$chart").yaml"
             fi
           done
           test "$found" -eq 1
+
+      - name: Upload Helm artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: helm-rendered-manifests
+          path: artifacts/helm
+          if-no-files-found: error

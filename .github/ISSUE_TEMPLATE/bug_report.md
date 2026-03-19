@@ -29,6 +29,8 @@ Describe the observed result.
 - Phase / gate affected:
 - Security impact:
 - Production impact:
+- Fail-closed behavior impacted:
+- Audit / trace impact:
 
 ## Environment
 
@@ -40,3 +42,8 @@ Describe the observed result.
 ## Logs / Evidence
 
 Add relevant logs, screenshots, traces, or payload samples.
+
+## Rollback
+
+- Immediate mitigation:
+- Known good revision:
