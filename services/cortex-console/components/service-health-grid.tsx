@@ -11,9 +11,9 @@ type ServiceStatus = {
 };
 
 const groups = {
-  "Auth & Identity": ["cortex-gateway"],
-  Agents: ["cortex-obs-agent"],
-  Observabilite: ["cortex-nats-bridge", "cortex-victoriametrics"],
+  "Auth & Identity": ["cortex-gateway", "cortex-trust-engine", "cortex-envoy"],
+  Agents: ["cortex-obs-agent", "cortex-sentinel"],
+  Observabilite: ["cortex-mcp-server", "cortex-victoriametrics"],
   Gouvernance: ["cortex-audit", "cortex-approval"]
 };
 

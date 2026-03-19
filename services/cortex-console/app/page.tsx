@@ -103,11 +103,11 @@ export default function DashboardPage() {
             </h2>
             <div className="space-y-3 font-mono text-sm">
               <div className="flex justify-between">
-                <span className="text-muted">trust p99</span>
+                <span className="text-muted">trust latency</span>
                 <span>{data.trustEngineLatencyP99} ms</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted">ext_authz p99</span>
+                <span className="text-muted">ext_authz latency</span>
                 <span>{data.extAuthzLatencyP99} ms</span>
               </div>
               <div className="flex justify-between">
@@ -115,7 +115,7 @@ export default function DashboardPage() {
                 <span>{data.agentTasksLast1h}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted">mcp calls / 1h</span>
+                <span className="text-muted">mcp calls observed</span>
                 <span>{data.mcpCallsLast1h}</span>
               </div>
               <div className="flex justify-between">

@@ -27,9 +27,17 @@ type syncJob struct {
 	CreatedAt float64 `json:"created_at"`
 }
 
+type syncSummary struct {
+	LastSuccess     string `json:"last_success"`
+	DeltaPending    int    `json:"delta_pending"`
+	QueuedJobs      int    `json:"queued_jobs"`
+	LatestQueuedJob string `json:"latest_queued_job"`
+}
+
 type store interface {
 	Save(context.Context, syncJob) error
 	Get(context.Context, string) (syncJob, bool, error)
+	Summary(context.Context) (syncSummary, error)
 }
 
 type memoryStore struct {
@@ -49,6 +57,12 @@ func (m *memoryStore) Get(_ context.Context, id string) (syncJob, bool, error) {
 	defer m.mu.RUnlock()
 	job, ok := m.jobs[id]
 	return job, ok, nil
+}
+
+func (m *memoryStore) Summary(_ context.Context) (syncSummary, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return summarizeJobs(m.jobs), nil
 }
 
 type postgresStore struct {
@@ -98,6 +112,24 @@ func (p *postgresStore) Get(ctx context.Context, id string) (syncJob, bool, erro
 	return job, true, nil
 }
 
+func (p *postgresStore) Summary(ctx context.Context) (syncSummary, error) {
+	rows, err := p.pool.Query(ctx, `SELECT id, status, mode, source, dry_run, created_at FROM sync_jobs`)
+	if err != nil {
+		return syncSummary{}, err
+	}
+	defer rows.Close()
+
+	jobs := map[string]syncJob{}
+	for rows.Next() {
+		var job syncJob
+		if err := rows.Scan(&job.ID, &job.Status, &job.Mode, &job.Source, &job.DryRun, &job.CreatedAt); err != nil {
+			return syncSummary{}, err
+		}
+		jobs[job.ID] = job
+	}
+	return summarizeJobs(jobs), nil
+}
+
 // Run starts the cortex-sync HTTP service.
 func Run() {
 	logger, _ := zap.NewProduction()
@@ -133,6 +165,7 @@ func newRouter(serviceStore store) http.Handler {
 	router.Post("/v1/sync/full", queueSync(serviceStore, "full"))
 	router.Post("/v1/sync/delta", queueSync(serviceStore, "delta"))
 	router.Get("/v1/sync/jobs/{jobID}", getJob(serviceStore))
+	router.Get("/v1/sync/summary", getSummary(serviceStore))
 	return router
 }
 
@@ -176,6 +209,44 @@ func getJob(serviceStore store) http.HandlerFunc {
 		}
 		writeJSON(w, http.StatusOK, job)
 	}
+}
+
+func getSummary(serviceStore store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		summary, err := serviceStore.Summary(r.Context())
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "sync_store_failed"})
+			return
+		}
+		writeJSON(w, http.StatusOK, summary)
+	}
+}
+
+func summarizeJobs(jobs map[string]syncJob) syncSummary {
+	summary := syncSummary{}
+	var latestQueuedAt float64
+	var lastSuccessAt float64
+
+	for _, job := range jobs {
+		if job.Status == "queued" {
+			summary.QueuedJobs++
+			if job.Mode == "delta" {
+				summary.DeltaPending++
+			}
+			if job.CreatedAt >= latestQueuedAt {
+				latestQueuedAt = job.CreatedAt
+				summary.LatestQueuedJob = job.ID
+			}
+		}
+		if job.Status == "success" || job.Status == "succeeded" {
+			if job.CreatedAt >= lastSuccessAt {
+				lastSuccessAt = job.CreatedAt
+				summary.LastSuccess = time.Unix(int64(job.CreatedAt), 0).UTC().Format(time.RFC3339)
+			}
+		}
+	}
+
+	return summary
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

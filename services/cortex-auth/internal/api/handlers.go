@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/cortexlabs/cortex-auth/internal/auth"
 )
@@ -12,17 +14,19 @@ import (
 type Handler struct {
 	privateKey ed25519.PrivateKey
 	publicKey  ed25519.PublicKey
+	mu         sync.RWMutex
+	sessions   map[string]sessionRecord
 }
 
 type issueTokenRequest struct {
-	Subject         string   `json:"subject"`
-	TrustScore      int      `json:"trust_score"`
-	Scopes          []string `json:"scopes"`
-	DeviceID        string   `json:"device_id"`
-	SessionID       string   `json:"session_id"`
-	DPoPThumbprint  string   `json:"dpop_thumbprint"`
-	PrincipalType   string   `json:"principal_type"`
-	MFAVerified     bool     `json:"mfa_verified"`
+	Subject        string   `json:"subject"`
+	TrustScore     int      `json:"trust_score"`
+	Scopes         []string `json:"scopes"`
+	DeviceID       string   `json:"device_id"`
+	SessionID      string   `json:"session_id"`
+	DPoPThumbprint string   `json:"dpop_thumbprint"`
+	PrincipalType  string   `json:"principal_type"`
+	MFAVerified    bool     `json:"mfa_verified"`
 }
 
 type validateTokenRequest struct {
@@ -33,10 +37,21 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
+type sessionRecord struct {
+	Subject       string
+	TrustScore    int
+	DeviceID      string
+	SessionID     string
+	PrincipalType string
+	MFAVerified   bool
+	UpdatedAt     int64
+}
+
 func NewHandler(privateKey ed25519.PrivateKey) *Handler {
 	return &Handler{
 		privateKey: privateKey,
 		publicKey:  privateKey.Public().(ed25519.PublicKey),
+		sessions:   map[string]sessionRecord{},
 	}
 }
 
@@ -93,6 +108,7 @@ func (h *Handler) IssueToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.recordSession(req)
 	writeJSON(w, http.StatusOK, map[string]string{"token": token})
 }
 
@@ -114,4 +130,56 @@ func (h *Handler) ValidateToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, claims)
+}
+
+func (h *Handler) recordSession(req issueTokenRequest) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.sessions[req.SessionID] = sessionRecord{
+		Subject:       req.Subject,
+		TrustScore:    req.TrustScore,
+		DeviceID:      req.DeviceID,
+		SessionID:     req.SessionID,
+		PrincipalType: req.PrincipalType,
+		MFAVerified:   req.MFAVerified,
+		UpdatedAt:     time.Now().Unix(),
+	}
+}
+
+func (h *Handler) SessionSummary(w http.ResponseWriter, _ *http.Request) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	uniqueUsers := map[string]struct{}{}
+	uniqueDevices := map[string]struct{}{}
+	usersLowTrust := map[string]struct{}{}
+	humanSessions := 0
+	workloadSessions := 0
+
+	for _, session := range h.sessions {
+		if session.Subject != "" {
+			uniqueUsers[session.Subject] = struct{}{}
+		}
+		if session.DeviceID != "" {
+			uniqueDevices[session.DeviceID] = struct{}{}
+		}
+		if session.TrustScore < 40 && session.Subject != "" {
+			usersLowTrust[session.Subject] = struct{}{}
+		}
+		switch session.PrincipalType {
+		case "human":
+			humanSessions++
+		case "workload", "agent":
+			workloadSessions++
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"active_sessions":   len(h.sessions),
+		"users_low_trust":   len(usersLowTrust),
+		"unique_users":      len(uniqueUsers),
+		"unique_devices":    len(uniqueDevices),
+		"human_sessions":    humanSessions,
+		"workload_sessions": workloadSessions,
+	})
 }

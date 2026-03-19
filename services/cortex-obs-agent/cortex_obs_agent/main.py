@@ -116,6 +116,8 @@ async def health_loop() -> None:
     loop_status["health"] = True
     urls = {
         "cortex-gateway": "http://cortex-gateway:8080/health",
+        "cortex-trust-engine": "http://cortex-trust-engine:8080/health",
+        "cortex-envoy": "http://cortex-envoy:9901/ready",
         "cortex-mcp-server": "http://cortex-mcp-server:8080/health",
         "cortex-sentinel": "http://cortex-sentinel:8080/health",
         "cortex-victoriametrics": "http://cortex-victoriametrics:8428/health",

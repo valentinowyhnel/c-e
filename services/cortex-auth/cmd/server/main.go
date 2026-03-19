@@ -40,5 +40,6 @@ func newRouter(handler *api.Handler) http.Handler {
 	})
 	router.Post("/v1/tokens/issue", handler.IssueToken)
 	router.Post("/v1/tokens/validate", handler.ValidateToken)
+	router.Get("/v1/sessions/summary", handler.SessionSummary)
 	return router
 }
