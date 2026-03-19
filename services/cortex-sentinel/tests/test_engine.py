@@ -11,6 +11,7 @@ from sentinel.engine import (
     check_multi_source,
     compute_score,
 )
+from sentinel.main import evaluate_plan_request
 
 
 def ev(event_type, source, severity, confidence, age=5.0):
@@ -106,3 +107,13 @@ async def test_sentinel_publishes_on_cycle():
     topics = [call.args[0] for call in js.publish.call_args_list]
     assert "cortex.obs.stream" in topics
     assert "cortex.trust.updates" in topics
+
+
+def test_plan_validation_forces_prepare_on_high_risk_actions():
+    result = evaluate_plan_request(
+        {"risk_level": 5, "actions": ["execute_irreversible_containment"]}
+    )
+    assert result["accepted"] is False
+    assert result["decision"] == "prepare_only"
+    assert result["approval_required"] is True
+    assert result["forensic_required"] is True

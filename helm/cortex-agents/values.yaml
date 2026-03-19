@@ -1,2 +1,5 @@
+sentinelLegacy:
+  enabled: false
+
 mcpServer:
   enabled: false

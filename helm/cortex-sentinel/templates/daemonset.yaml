@@ -40,11 +40,11 @@ spec:
         - name: sentinel
           image: cortex/cortex-sentinel:v1
           imagePullPolicy: Never
-          command: ["uv", "run", "python", "-m", "sentinel.main"]
+          command: ["python", "-m", "sentinel.main"]
           env:
             - name: ENTITY_ID
               valueFrom:
-                fieldRef:
+                  fieldRef:
                   fieldPath: spec.nodeName
             - name: ENTITY_TYPE
               value: "machine"
@@ -64,8 +64,20 @@ spec:
               memory: 128Mi
               cpu: 200m
           ports:
-            - name: metrics
-              containerPort: 9090
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
           volumeMounts:
             - name: vault-secrets
               mountPath: /vault/secrets
