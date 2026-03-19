@@ -6,7 +6,7 @@ import os
 import platform
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -27,19 +27,131 @@ except ImportError:
                 sys.path.insert(0, str(root))
             break
 
-from cortex_core.contracts import (  # noqa: E402
-    ActionClass,
-    DependencyHealthSnapshot,
-    DependencyState,
-    ExecutionGuardrails,
-    RiskEnvelope,
-    SOTRecord,
-)
-from cortex_core.degraded import block_irreversible_actions  # noqa: E402
-from cortex_core.state_machine import (  # noqa: E402
-    IsolationState,
-    transition_isolation_state,
-)
+try:
+    from cortex_core.contracts import (  # noqa: E402
+        ActionClass,
+        DependencyHealthSnapshot,
+        DependencyState,
+        ExecutionGuardrails,
+        RiskEnvelope,
+        SOTRecord,
+    )
+    from cortex_core.degraded import block_irreversible_actions  # noqa: E402
+    from cortex_core.state_machine import (  # noqa: E402
+        IsolationState,
+        transition_isolation_state,
+    )
+except ImportError:
+    # Standalone fallback for the packaged daemonset image. The daemonset must
+    # remain fail-safe even if the shared Python package is not bundled.
+    class ActionClass(str, Enum):
+        READ_ONLY = "read_only"
+        ADVISORY = "advisory"
+        PREPARE_ONLY = "prepare_only"
+        EXECUTE_WITH_APPROVAL = "execute_with_approval"
+        IRREVERSIBLE = "irreversible"
+
+    class DependencyState(str, Enum):
+        HEALTHY = "healthy"
+        DEGRADED = "degraded"
+        UNAVAILABLE = "unavailable"
+
+    @dataclass
+    class DependencyHealthSnapshot:
+        nats: DependencyState = DependencyState.HEALTHY
+        sentinel: DependencyState = DependencyState.HEALTHY
+        approval: DependencyState = DependencyState.HEALTHY
+        vault: DependencyState = DependencyState.HEALTHY
+        neo4j: DependencyState = DependencyState.HEALTHY
+        bloodhound: DependencyState = DependencyState.HEALTHY
+        external_llm: DependencyState = DependencyState.HEALTHY
+
+    @dataclass
+    class ExecutionGuardrails:
+        action_class: ActionClass
+        approval_required: bool = False
+        forensic_required: bool = False
+        min_sources: int = 1
+
+    @dataclass
+    class RiskEnvelope:
+        entity_id: str
+        entity_type: str
+        action: str
+        action_class: ActionClass
+        trust_score: float
+        threat_level: int
+        evidence_count: int = 0
+        strong_signal_count: int = 0
+        distinct_sources: int = 0
+        blast_radius: int = 0
+        crown_jewels_exposed: bool = False
+        criticality: str = "normal"
+        scopes: list[str] | None = None
+        environment: str = "preprod"
+        dependencies: DependencyHealthSnapshot = field(default_factory=DependencyHealthSnapshot)
+
+    @dataclass
+    class SOTRecord:
+        entity_id: str
+        entity_type: str
+        reason_codes: list[str]
+        observation_level: str
+        restrictions: list[str]
+        expires_at: float
+        renewable: bool = False
+        token_id: str = ""
+
+        def __post_init__(self) -> None:
+            if not self.token_id:
+                self.token_id = f"sot-{self.entity_id}-{int(time.time())}"
+
+        def model_dump(self) -> dict[str, Any]:
+            return asdict(self)
+
+    class IsolationState(str, Enum):
+        FREE = "free"
+        MONITORED = "monitored"
+        SUSPECTED = "suspected"
+        OBSERVATION = "observation"
+        RESTRICTED = "restricted"
+        QUARANTINED = "quarantined"
+        IDENTITY_REVOKED = "identity_revoked"
+        FORENSIC_PRESERVED = "forensic_preserved"
+        ISOLATED = "isolated"
+        RECOVERY_PENDING = "recovery_pending"
+        RESTORED = "restored"
+        FAILED = "failed"
+
+    _TRANSITIONS: dict[IsolationState, set[IsolationState]] = {
+        IsolationState.FREE: {IsolationState.MONITORED, IsolationState.SUSPECTED},
+        IsolationState.MONITORED: {IsolationState.SUSPECTED, IsolationState.OBSERVATION},
+        IsolationState.SUSPECTED: {IsolationState.OBSERVATION, IsolationState.RESTRICTED, IsolationState.FREE},
+        IsolationState.OBSERVATION: {IsolationState.RESTRICTED, IsolationState.QUARANTINED, IsolationState.FREE},
+        IsolationState.RESTRICTED: {IsolationState.QUARANTINED, IsolationState.RECOVERY_PENDING},
+        IsolationState.QUARANTINED: {IsolationState.IDENTITY_REVOKED, IsolationState.RECOVERY_PENDING},
+        IsolationState.IDENTITY_REVOKED: {IsolationState.FORENSIC_PRESERVED, IsolationState.ISOLATED},
+        IsolationState.FORENSIC_PRESERVED: {IsolationState.ISOLATED},
+        IsolationState.ISOLATED: {IsolationState.RECOVERY_PENDING},
+        IsolationState.RECOVERY_PENDING: {IsolationState.RESTORED, IsolationState.FAILED},
+        IsolationState.RESTORED: {IsolationState.FREE},
+        IsolationState.FAILED: set(),
+    }
+
+    @dataclass
+    class _TransitionResult:
+        allowed: bool
+        from_state: IsolationState
+        to_state: IsolationState
+        reason: str
+
+    def transition_isolation_state(current: IsolationState, requested: IsolationState, reason: str) -> _TransitionResult:
+        if requested in _TRANSITIONS.get(current, set()):
+            return _TransitionResult(True, current, requested, reason)
+        return _TransitionResult(False, current, current, f"invalid_transition:{current.value}->{requested.value}")
+
+    def block_irreversible_actions(dependencies: DependencyHealthSnapshot) -> bool:
+        return dependencies.approval == DependencyState.UNAVAILABLE or dependencies.nats == DependencyState.UNAVAILABLE
 
 log = structlog.get_logger()
 

@@ -40,7 +40,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: sentinel
-          image: cortex/cortex-sentinel:v1-fix2
+          image: cortex/cortex-sentinel:v1-fix3
           imagePullPolicy: Never
           command: ["python", "-m", "sentinel.main"]
           env:
