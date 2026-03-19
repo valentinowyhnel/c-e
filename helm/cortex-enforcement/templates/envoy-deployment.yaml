@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cortex-envoy
+  namespace: cortex-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cortex-envoy
+  template:
+    metadata:
+      labels:
+        app: cortex-envoy
+    spec:
+      containers:
+        - name: envoy
+          image: envoyproxy/envoy:v1.29.3
+          args:
+            - -c
+            - /etc/envoy/envoy.yaml
+          ports:
+            - containerPort: 10000
+              name: proxy
+            - containerPort: 9901
+              name: admin
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 9901
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /etc/envoy
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+      volumes:
+        - name: config
+          configMap:
+            name: cortex-envoy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cortex-envoy
+  namespace: cortex-system
+spec:
+  selector:
+    app: cortex-envoy
+  ports:
+    - name: proxy
+      port: 10000
+      targetPort: 10000
+    - name: admin
+      port: 9901
+      targetPort: 9901

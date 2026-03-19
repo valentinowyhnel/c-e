@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cortex-sentinel-machine"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "cryptography==46.0.5",
+    "grpcio==1.78.1",
+    "nats-py==2.7.0",
+    "prometheus-client==0.20.0",
+    "PyYAML==6.0.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

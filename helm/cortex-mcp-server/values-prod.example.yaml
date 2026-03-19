@@ -1,0 +1,28 @@
+environment: prod
+
+image:
+  repository: cortex/cortex-mcp-server
+  tag: "2026.03.19-prod"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+service:
+  port: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  sentinelUrl: http://cortex-sentinel:8080
+  trustEngineUrl: http://cortex-trust-engine:8080
+
+internalApi:
+  secretName: cortex-internal-api
+  secretKey: token
+  required: true

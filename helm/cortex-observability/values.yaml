@@ -1,0 +1,24 @@
+environment: preprod
+
+images:
+  natsBridge:
+    repository: cortex/cortex-nats-bridge
+    tag: dev
+    pullPolicy: IfNotPresent
+  obsAgent:
+    repository: cortex/cortex-obs-agent
+    tag: dev
+    pullPolicy: IfNotPresent
+  audit:
+    repository: cortex/cortex-audit
+    tag: dev
+    pullPolicy: IfNotPresent
+  approval:
+    repository: cortex/cortex-approval
+    tag: dev
+    pullPolicy: IfNotPresent
+
+internalApi:
+  secretName: cortex-internal-api
+  secretKey: token
+  required: false

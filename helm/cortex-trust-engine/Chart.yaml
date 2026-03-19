@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cortex-trust-engine
+description: Cortex Trust Engine deployment
+type: application
+version: 0.1.0
+appVersion: "v2"

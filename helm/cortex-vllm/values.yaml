@@ -1,0 +1,11 @@
+cpu:
+  enabled: true
+  modelsPvc: vllm-models-pvc
+  phi3:
+    enabled: true
+  mistral:
+    enabled: false
+gpu:
+  enabled: false
+  huggingFaceSecret: vllm-hf-token
+apiKeysSecret: vllm-api-keys

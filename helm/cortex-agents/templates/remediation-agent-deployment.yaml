@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cortex-agent-remediation
+  namespace: cortex-system
+  labels:
+    app: cortex-agent-remediation
+    app.kubernetes.io/name: cortex-agent-remediation
+    app.kubernetes.io/part-of: cortex
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cortex-agent-remediation
+  template:
+    metadata:
+      labels:
+        app: cortex-agent-remediation
+        app.kubernetes.io/name: cortex-agent-remediation
+        app.kubernetes.io/part-of: cortex
+    spec:
+      containers:
+        - name: cortex-agent-remediation
+          image: cortex/cortex-agents:v3
+          imagePullPolicy: Never
+          env:
+            - name: CORTEX_AGENT_TYPE
+              value: remediation
+            - name: NATS_URL
+              value: nats://cortex-nats:4222
+            - name: BLOODHOUND_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: bloodhound-ce-api
+                  key: token
+                  optional: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 384Mi

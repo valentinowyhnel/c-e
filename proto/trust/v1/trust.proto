@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package cortex.trust.v1;
+
+option go_package = "github.com/cortexlabs/proto/trust/v1;trustv1";
+
+message TrustEvaluationRequest {
+  string entity_id = 1;
+  string entity_type = 2;
+  string request_path = 3;
+}
+
+message TrustEvaluationResponse {
+  int32 score = 1;
+  string decision = 2;
+  repeated string factors = 3;
+}

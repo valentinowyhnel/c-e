@@ -1,0 +1,21 @@
+environment: preprod
+
+image:
+  repository: cortex/cortex-console
+  tag: dev
+  pullPolicy: IfNotPresent
+
+vault:
+  addr: http://vault.vault-system:8200
+  tokenSecretName: cortex-console-vault
+  tokenSecretKey: token
+
+internalApi:
+  secretName: cortex-internal-api
+  secretKey: token
+  required: false
+
+consoleInternal:
+  secretName: cortex-console-internal
+  secretKey: token
+  required: false

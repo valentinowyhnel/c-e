@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate repository skeleton
+        run: |
+          test -f Makefile
+          test -f STACK.md
+          test -f AGENTS.md
+          test -d services
+          test -d helm
+          test -d policies
+          test -d proto
+          test -x tests/security/current-gate.sh

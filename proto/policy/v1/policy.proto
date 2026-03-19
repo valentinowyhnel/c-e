@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package cortex.policy.v1;
+
+option go_package = "github.com/cortexlabs/proto/policy/v1;policyv1";
+
+message PolicyRequest {
+  string subject = 1;
+  string resource = 2;
+  string action = 3;
+  int32 trust_score = 4;
+}
+
+message PolicyResponse {
+  bool allow = 1;
+  string reason = 2;
+}

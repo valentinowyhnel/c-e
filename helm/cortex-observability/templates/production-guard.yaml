@@ -1,0 +1,10 @@
+{{- if eq .Values.environment "prod" -}}
+{{- if not .Values.internalApi.required -}}
+{{- fail "cortex-observability: production deployment requires internalApi.required=true" -}}
+{{- end -}}
+{{- range $name, $image := .Values.images -}}
+{{- if or (eq $image.tag "dev") (eq $image.tag "latest") (eq $image.tag "") -}}
+{{- fail (printf "cortex-observability: production deployment requires a non-dev immutable image tag for %s" $name) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

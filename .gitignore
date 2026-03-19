@@ -1,0 +1,47 @@
+# Git metadata
+.git/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Local temp artifacts
+.tmp-*
+tmp-kind-kubeconfig.yaml
+*.tar
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+*.egg-info/
+.venv/
+venv/
+
+# Node / Next
+node_modules/
+.next/
+*.tsbuildinfo
+
+# Go / build caches
+.gocache/
+bin/
+dist/
+build/
+
+# Test scratch dirs generated in this workspace
+pytest-cache-files-*/
+.test-artifacts/
+test-artifacts/
+
+# Service-local runtime state
+*.wal
+*.state
+*.sqlite
+*.db

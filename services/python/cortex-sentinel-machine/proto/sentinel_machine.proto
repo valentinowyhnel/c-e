@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package cortex.sentinel.machine.v1;
+
+message FeatureValue {
+  string key = 1;
+  double value = 2;
+}
+
+message EndpointEvent {
+  string event_id = 1;
+  string machine_id = 2;
+  string tenant_id = 3;
+  string session_local_id = 4;
+  string event_type = 5;
+  string event_time = 6;
+  string process_lineage_summary = 7;
+  repeated FeatureValue features = 8;
+  string trace_id = 9;
+  string privacy_level = 10;
+  double confidence_local = 11;
+}
+
+message RiskSignal {
+  string event_id = 1;
+  string model_version = 2;
+  double local_score = 3;
+  string severity = 4;
+  double confidence = 5;
+  bool soft_drift = 6;
+  bool hard_drift = 7;
+}
+
+message ModelUpdate {
+  string model_id = 1;
+  string machine_id = 2;
+  string tenant_id = 3;
+  string feature_schema_hash = 4;
+  map<string, double> delta = 5;
+  map<string, double> metrics = 6;
+  string dataset_fingerprint = 7;
+  string signed_by = 8;
+  string replay_nonce = 9;
+}
+
+message PolicyBundle {
+  string policy_id = 1;
+  string tenant_id = 2;
+  string issued_at = 3;
+  string signature = 4;
+}
+
+service SentinelMachineIngest {
+  rpc PushEvent(EndpointEvent) returns (RiskSignal);
+  rpc UploadModelUpdate(ModelUpdate) returns (PolicyBundle);
+}
+

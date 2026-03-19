@@ -1,0 +1,24 @@
+environment: prod
+
+images:
+  natsBridge:
+    repository: cortex/cortex-nats-bridge
+    tag: "2026.03.19-prod"
+    pullPolicy: IfNotPresent
+  obsAgent:
+    repository: cortex/cortex-obs-agent
+    tag: "2026.03.19-prod"
+    pullPolicy: IfNotPresent
+  audit:
+    repository: cortex/cortex-audit
+    tag: "2026.03.19-prod"
+    pullPolicy: IfNotPresent
+  approval:
+    repository: cortex/cortex-approval
+    tag: "2026.03.19-prod"
+    pullPolicy: IfNotPresent
+
+internalApi:
+  secretName: cortex-internal-api
+  secretKey: token
+  required: true

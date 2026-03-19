@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cortex-sentinel
+  namespace: cortex-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cortex-sentinel
+  template:
+    metadata:
+      labels:
+        app: cortex-sentinel
+    spec:
+      containers:
+        - name: cortex-sentinel
+          image: cortex/cortex-sentinel:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cortex-sentinel
+  namespace: cortex-system
+spec:
+  selector:
+    app: cortex-sentinel
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

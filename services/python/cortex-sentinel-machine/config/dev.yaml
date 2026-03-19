@@ -1,0 +1,7 @@
+mode: dev
+queue_path: ./var/dev-sentinel-queue.log
+cpu_budget_percent: 3.0
+memory_budget_mb: 256
+promotion_patience: 2
+warmup_events: 10
+

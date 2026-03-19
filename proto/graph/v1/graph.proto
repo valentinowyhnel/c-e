@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package cortex.graph.v1;
+
+option go_package = "github.com/cortexlabs/proto/graph/v1;graphv1";
+
+message EntityRequest {
+  string entity_id = 1;
+}
+
+message EntityResponse {
+  string entity_id = 1;
+  string entity_type = 2;
+  repeated string related_ids = 3;
+}

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cortex-valkey
+  namespace: cortex-system
+spec:
+  serviceName: cortex-valkey
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cortex-valkey
+  template:
+    metadata:
+      labels:
+        app: cortex-valkey
+    spec:
+      containers:
+        - name: valkey
+          image: valkey/valkey:7.2.5-alpine
+          ports:
+            - containerPort: 6379
+              name: redis
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cortex-valkey
+  namespace: cortex-system
+spec:
+  selector:
+    app: cortex-valkey
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379

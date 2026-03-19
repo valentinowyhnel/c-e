@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-agents-internal
+  namespace: cortex-system
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - cortex-nats
+          - cortex-vllm
+          - cortex-sentinel
+          - cortex-mcp-server
+          - cortex-orchestrator
+          - cortex-agent-ad
+          - cortex-agent-decision
+          - cortex-agent-remediation
+          - bloodhound-ce
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cortex-system
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cortex-system

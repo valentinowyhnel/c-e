@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cortex-vllm
+description: Cortex vLLM CPU and GPU model deployments
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

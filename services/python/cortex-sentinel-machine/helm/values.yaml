@@ -1,0 +1,16 @@
+image:
+  repository: cortex/cortex-sentinel-machine
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
+spiffeID: spiffe://cortex/sentinel-machine
+queuePath: /var/lib/cortex/sentinel-machine/queue.log
+

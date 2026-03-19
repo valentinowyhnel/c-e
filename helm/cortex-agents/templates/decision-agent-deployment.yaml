@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cortex-agent-decision
+  namespace: cortex-system
+  labels:
+    app: cortex-agent-decision
+    app.kubernetes.io/name: cortex-agent-decision
+    app.kubernetes.io/part-of: cortex
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cortex-agent-decision
+  template:
+    metadata:
+      labels:
+        app: cortex-agent-decision
+        app.kubernetes.io/name: cortex-agent-decision
+        app.kubernetes.io/part-of: cortex
+    spec:
+      containers:
+        - name: cortex-agent-decision
+          image: cortex/cortex-agents:v3
+          imagePullPolicy: Never
+          env:
+            - name: CORTEX_AGENT_TYPE
+              value: decision
+            - name: NATS_URL
+              value: nats://cortex-nats:4222
+            - name: BLOODHOUND_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: bloodhound-ce-api
+                  key: token
+                  optional: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 384Mi

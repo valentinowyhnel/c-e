@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cortex-sentinel
+  namespace: cortex-system
+  labels:
+    app.kubernetes.io/name: cortex-sentinel
+    app.kubernetes.io/part-of: cortex
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cortex-sentinel
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cortex-sentinel
+        app.kubernetes.io/part-of: cortex
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "cortex-sentinel"
+        vault.hashicorp.com/agent-inject-secret-config: "secret/data/cortex/sentinel/config"
+        vault.hashicorp.com/agent-inject-template-config: |
+          {{- with secret "secret/data/cortex/sentinel/config" -}}
+          NATS_URL="{{ .Data.data.nats_url }}"
+          TRUST_ENGINE_URL="{{ .Data.data.trust_engine_url }}"
+          CORTEX_AUDIT_IP="{{ .Data.data.audit_ip }}"
+          {{- end }}
+    spec:
+      serviceAccountName: cortex-sentinel
+      hostPID: false
+      hostNetwork: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: sentinel
+          image: cortex/cortex-sentinel:v1
+          imagePullPolicy: Never
+          command: ["uv", "run", "python", "-m", "sentinel.main"]
+          env:
+            - name: ENTITY_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ENTITY_TYPE
+              value: "machine"
+            - name: HOME
+              value: "/tmp"
+            - name: UV_CACHE_DIR
+              value: "/tmp/uv-cache"
+            - name: VAULT_SECRETS_PATH
+              value: "/vault/secrets/config"
+            - name: FALCO_LOG_PATH
+              value: "/var/log/falco/events.json"
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi
+              cpu: 200m
+          ports:
+            - name: metrics
+              containerPort: 9090
+          volumeMounts:
+            - name: vault-secrets
+              mountPath: /vault/secrets
+              readOnly: true
+            - name: falco-logs
+              mountPath: /var/log/falco
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: vault-secrets
+          emptyDir:
+            medium: Memory
+        - name: falco-logs
+          hostPath:
+            path: /var/log/falco
+            type: DirectoryOrCreate
+        - name: tmp
+          emptyDir: {}
+      tolerations:
+        - key: "cortex/sensitive"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"

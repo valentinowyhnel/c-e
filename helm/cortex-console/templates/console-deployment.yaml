@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cortex-console
+  namespace: cortex-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cortex-console
+  template:
+    metadata:
+      labels:
+        app: cortex-console
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "cortex-console"
+        vault.hashicorp.com/agent-inject-secret-model-keys: "secret/data/cortex/model-keys"
+        vault.hashicorp.com/agent-inject-template-model-keys: |
+          {{ `{{- with secret "secret/data/cortex/model-keys" -}}` }}
+          ANTHROPIC_API_KEY="{{ `{{ .Data.data.ANTHROPIC_API_KEY }}` }}"
+          OPENAI_API_KEY="{{ `{{ .Data.data.OPENAI_API_KEY }}` }}"
+          VLLM_API_KEY="{{ `{{ .Data.data.VLLM_API_KEY }}` }}"
+          {{ `{{- end }}` }}
+    spec:
+      containers:
+        - name: cortex-console
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: CORTEX_ENVIRONMENT
+              value: {{ .Values.environment | quote }}
+            - name: HOSTNAME
+              value: 0.0.0.0
+            - name: PORT
+              value: "3000"
+            - name: CORTEX_CONSOLE_STATE_PATH
+              value: /var/lib/cortex-console
+            - name: CORTEX_MODEL_KEYS_FILE
+              value: /vault/secrets/model-keys
+            - name: CORTEX_MODEL_KEYS_SECRET_PATH
+              value: secret/data/cortex/model-keys
+            - name: CORTEX_VAULT_ADDR
+              value: {{ .Values.vault.addr | quote }}
+            - name: CORTEX_VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.vault.tokenSecretName | quote }}
+                  key: {{ .Values.vault.tokenSecretKey | quote }}
+                  optional: true
+            - name: CORTEX_INTERNAL_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.internalApi.secretName | quote }}
+                  key: {{ .Values.internalApi.secretKey | quote }}
+                  optional: {{ not .Values.internalApi.required }}
+            - name: CORTEX_CONSOLE_INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.consoleInternal.secretName | quote }}
+                  key: {{ .Values.consoleInternal.secretKey | quote }}
+                  optional: {{ not .Values.consoleInternal.required }}
+          ports:
+            - containerPort: 3000
+              name: http
+          volumeMounts:
+            - name: console-state
+              mountPath: /var/lib/cortex-console
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: console-state
+          persistentVolumeClaim:
+            claimName: cortex-console-state
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cortex-console
+  namespace: cortex-system
+spec:
+  selector:
+    app: cortex-console
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

@@ -1,0 +1,2 @@
+from .redactor import EventNormalizer
+

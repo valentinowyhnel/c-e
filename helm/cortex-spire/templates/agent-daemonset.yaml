@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spire-agent
+  namespace: spire-system
+spec:
+  selector:
+    matchLabels:
+      app: spire-agent
+  template:
+    metadata:
+      labels:
+        app: spire-agent
+    spec:
+      serviceAccountName: spire-agent
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        cortex/node-group: workload
+      containers:
+        - name: spire-agent
+          image: ghcr.io/spiffe/spire-agent:1.9.6
+          args:
+            - -config
+            - /run/spire/config/agent.conf
+          readinessProbe:
+            exec:
+              command:
+                - /opt/spire/bin/spire-agent
+                - healthcheck
+                - -socketPath
+                - /run/spire/sockets/agent.sock
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          volumeMounts:
+            - name: config
+              mountPath: /run/spire/config
+              readOnly: true
+            - name: sockets
+              mountPath: /run/spire/sockets
+            - name: data
+              mountPath: /run/spire/data
+            - name: bundle
+              mountPath: /run/spire/bundle
+            - name: projected-token
+              mountPath: /var/run/secrets/tokens
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: spire-agent-config
+        - name: sockets
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
+        - name: data
+          hostPath:
+            path: /run/spire/data
+            type: DirectoryOrCreate
+        - name: bundle
+          hostPath:
+            path: /run/spire/bundle
+            type: DirectoryOrCreate
+        - name: projected-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: spire-server
+                  expirationSeconds: 3600
+                  path: spire-agent

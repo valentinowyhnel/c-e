@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cortex-gateway
+  namespace: cortex-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cortex-gateway
+  template:
+    metadata:
+      labels:
+        app: cortex-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: cortex/cortex-gateway:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9001
+              name: grpc
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cortex-gateway
+  namespace: cortex-system
+spec:
+  selector:
+    app: cortex-gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: grpc
+      port: 9001
+      targetPort: 9001

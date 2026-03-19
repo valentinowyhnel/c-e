@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cortex-enforcement
+description: Cortex Phase 3 local enforcement stack
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

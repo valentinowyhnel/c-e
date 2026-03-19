@@ -1,0 +1,37 @@
+image:
+  repository: cortex/cortex-sentinel-machine
+  tag: "dev"
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  name: cortex-sentinel-machine
+
+nats:
+  enabled: true
+  url: nats://cortex-nats:4222
+
+controlPlane:
+  ingestUrl: http://cortex-gateway:8080
+  trustUrl: http://cortex-trust-engine:8080
+  modelUrl: http://cortex-orchestrator:8080
+  internalToken: cortex-internal-dev-token
+
+grpc:
+  bind: 0.0.0.0:50061
+  tlsMode: dev-insecure
+
+observability:
+  bind: 0.0.0.0:18080
+  token: sentinel-observability-token
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
+storage:
+  queueHostPath: /var/lib/cortex/sentinel-machine
+

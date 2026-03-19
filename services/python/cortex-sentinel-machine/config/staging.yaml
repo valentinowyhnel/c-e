@@ -1,0 +1,7 @@
+mode: staging
+queue_path: ./var/staging-sentinel-queue.log
+cpu_budget_percent: 3.0
+memory_budget_mb: 256
+promotion_patience: 3
+warmup_events: 25
+

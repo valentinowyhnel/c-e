@@ -1,0 +1,25 @@
+name: helm-lint
+
+on:
+  pull_request:
+    paths:
+      - "helm/**"
+      - ".github/workflows/helm-lint.yml"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+      - name: Helm lint
+        run: |
+          found=0
+          for chart in helm/cortex-*/; do
+            if [ -d "$chart" ]; then
+              found=1
+              helm lint "$chart" --strict
+            fi
+          done
+          test "$found" -eq 1

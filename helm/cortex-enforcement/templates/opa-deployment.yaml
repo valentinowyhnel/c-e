@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cortex-opa
+  namespace: cortex-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cortex-opa
+  template:
+    metadata:
+      labels:
+        app: cortex-opa
+    spec:
+      containers:
+        - name: opa
+          image: openpolicyagent/opa:0.63.0-static
+          args:
+            - run
+            - --server
+            - --addr=0.0.0.0:8181
+            - /policies/policy.rego
+          ports:
+            - containerPort: 8181
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8181
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: policy
+              mountPath: /policies
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+      volumes:
+        - name: policy
+          configMap:
+            name: cortex-opa-policy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cortex-opa
+  namespace: cortex-system
+spec:
+  selector:
+    app: cortex-opa
+  ports:
+    - name: http
+      port: 8181
+      targetPort: 8181

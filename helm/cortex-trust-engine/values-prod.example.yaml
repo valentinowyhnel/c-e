@@ -1,0 +1,11 @@
+environment: prod
+
+image:
+  repository: cortex/cortex-trust-engine
+  tag: "2026.03.19-prod"
+  pullPolicy: IfNotPresent
+
+internalApi:
+  secretName: cortex-internal-api
+  secretKey: token
+  required: true

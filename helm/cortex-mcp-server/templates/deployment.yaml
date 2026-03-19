@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cortex-mcp-server
+  namespace: cortex-system
+  labels:
+    app.kubernetes.io/name: cortex-mcp-server
+    app.kubernetes.io/part-of: cortex
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cortex-mcp-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cortex-mcp-server
+        app.kubernetes.io/part-of: cortex
+    spec:
+      containers:
+        - name: cortex-mcp-server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: CORTEX_ENVIRONMENT
+              value: {{ .Values.environment | quote }}
+            - name: SENTINEL_URL
+              value: {{ .Values.env.sentinelUrl | quote }}
+            - name: TRUST_ENGINE_URL
+              value: {{ .Values.env.trustEngineUrl | quote }}
+            - name: CORTEX_INTERNAL_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.internalApi.secretName | quote }}
+                  key: {{ .Values.internalApi.secretKey | quote }}
+                  optional: {{ not .Values.internalApi.required }}
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+{{ toYaml .Values.resources | indent 12 }}

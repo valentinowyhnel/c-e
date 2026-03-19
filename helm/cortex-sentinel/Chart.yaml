@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cortex-sentinel
+description: Cortex immune sentinel daemonset
+type: application
+version: 0.1.0
+appVersion: "v1"

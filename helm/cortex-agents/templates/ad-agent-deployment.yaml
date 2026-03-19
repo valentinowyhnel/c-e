@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cortex-agent-ad
+  namespace: cortex-system
+  labels:
+    app: cortex-agent-ad
+    app.kubernetes.io/name: cortex-agent-ad
+    app.kubernetes.io/part-of: cortex
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cortex-agent-ad
+  template:
+    metadata:
+      labels:
+        app: cortex-agent-ad
+        app.kubernetes.io/name: cortex-agent-ad
+        app.kubernetes.io/part-of: cortex
+    spec:
+      containers:
+        - name: cortex-agent-ad
+          image: cortex/cortex-agents:v3
+          imagePullPolicy: Never
+          env:
+            - name: CORTEX_AGENT_TYPE
+              value: ad
+            - name: NATS_URL
+              value: nats://cortex-nats:4222
+            - name: BLOODHOUND_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: bloodhound-ce-api
+                  key: token
+                  optional: true
+            - name: AD_DC_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: cortex-ad-credentials
+                  key: dc_host
+                  optional: true
+            - name: AD_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: cortex-ad-credentials
+                  key: domain
+                  optional: true
+            - name: AD_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: cortex-ad-credentials
+                  key: username
+                  optional: true
+            - name: AD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cortex-ad-credentials
+                  key: password
+                  optional: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 384Mi

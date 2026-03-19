@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cortex-console
+description: Cortex Phase 5 SOC console
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

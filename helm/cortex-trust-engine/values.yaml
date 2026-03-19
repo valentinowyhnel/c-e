@@ -1,0 +1,11 @@
+environment: preprod
+
+image:
+  repository: cortex/cortex-trust-engine
+  tag: dev
+  pullPolicy: IfNotPresent
+
+internalApi:
+  secretName: cortex-internal-api
+  secretKey: token
+  required: false

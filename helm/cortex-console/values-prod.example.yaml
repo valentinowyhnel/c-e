@@ -1,0 +1,21 @@
+environment: prod
+
+image:
+  repository: cortex/cortex-console
+  tag: "2026.03.19-prod"
+  pullPolicy: IfNotPresent
+
+vault:
+  addr: https://vault.vault-system:8200
+  tokenSecretName: cortex-console-vault
+  tokenSecretKey: token
+
+internalApi:
+  secretName: cortex-internal-api
+  secretKey: token
+  required: true
+
+consoleInternal:
+  secretName: cortex-console-internal
+  secretKey: token
+  required: true

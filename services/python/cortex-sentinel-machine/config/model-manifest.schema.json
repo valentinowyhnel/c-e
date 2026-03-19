@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SentinelMachineModelManifest",
+  "type": "object",
+  "required": ["body", "signature", "signer"],
+  "properties": {
+    "body": {
+      "type": "object",
+      "required": ["model_id", "tenant_scope", "machine_scope", "training_window", "feature_schema_hash"],
+      "properties": {
+        "model_id": { "type": "string" },
+        "parent_model_id": { "type": ["string", "null"] },
+        "tenant_scope": { "type": "string" },
+        "machine_scope": { "type": "string" },
+        "training_window": { "type": "string" },
+        "feature_schema_hash": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "signature": { "type": "string" },
+    "signer": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+

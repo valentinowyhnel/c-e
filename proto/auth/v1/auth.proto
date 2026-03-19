@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package cortex.auth.v1;
+
+option go_package = "github.com/cortexlabs/proto/auth/v1;authv1";
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  string subject = 1;
+  repeated string scopes = 2;
+  int32 trust_score = 3;
+}

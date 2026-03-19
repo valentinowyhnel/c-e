@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cortex-sentinel-machine
+  labels:
+    app.kubernetes.io/name: cortex-sentinel-machine
+    app.kubernetes.io/part-of: cortex
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cortex-sentinel-machine
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cortex-sentinel-machine
+        app.kubernetes.io/part-of: cortex
+    spec:
+      serviceAccountName: cortex-sentinel-machine
+      containers:
+        - name: cortex-sentinel-machine
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "app.serve"]
+          env:
+            - name: SENTINEL_MACHINE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: SENTINEL_TENANT_ID
+              value: "tenant-prod"
+            - name: SENTINEL_QUEUE_PATH
+              value: "{{ .Values.queuePath }}"
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+      tolerations:
+        - key: "cortex/sensitive"
+          operator: "Exists"
+          effect: "NoSchedule"

@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cortex-sentinel-machine
+  namespace: cortex-system
+  labels:
+    app.kubernetes.io/name: cortex-sentinel-machine
+    app.kubernetes.io/part-of: cortex
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cortex-sentinel-machine
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cortex-sentinel-machine
+        app.kubernetes.io/part-of: cortex
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: cortex-sentinel-machine
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "app.serve"]
+          env:
+            - name: SENTINEL_MACHINE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: SENTINEL_TENANT_ID
+              value: "tenant-cluster"
+            - name: SENTINEL_MACHINE_ROLE
+              value: "node"
+            - name: SENTINEL_GRPC_BIND
+              value: "{{ .Values.grpc.bind }}"
+            - name: SENTINEL_GRPC_TLS_MODE
+              value: "{{ .Values.grpc.tlsMode }}"
+            - name: SENTINEL_OBSERVABILITY_BIND
+              value: "{{ .Values.observability.bind }}"
+            - name: SENTINEL_OBSERVABILITY_TOKEN
+              value: "{{ .Values.observability.token }}"
+            - name: SENTINEL_CORTEX_INGEST_URL
+              value: "{{ .Values.controlPlane.ingestUrl }}"
+            - name: SENTINEL_CORTEX_TRUST_URL
+              value: "{{ .Values.controlPlane.trustUrl }}"
+            - name: SENTINEL_CORTEX_MODEL_URL
+              value: "{{ .Values.controlPlane.modelUrl }}"
+            - name: SENTINEL_CORTEX_INTERNAL_TOKEN
+              value: "{{ .Values.controlPlane.internalToken }}"
+            - name: SENTINEL_ENABLE_NATS_BUS
+              value: {{ ternary "1" "0" .Values.nats.enabled | quote }}
+            - name: NATS_URL
+              value: "{{ .Values.nats.url }}"
+            - name: SENTINEL_QUEUE_PATH
+              value: /var/lib/cortex/sentinel-machine/queue.log
+            - name: SENTINEL_STATE_DIR
+              value: /var/lib/cortex/sentinel-machine/state
+          ports:
+            - name: grpc
+              containerPort: 50061
+            - name: metrics
+              containerPort: 18080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+              httpHeaders:
+                - name: Authorization
+                  value: "Bearer {{ .Values.observability.token }}"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: sentinel-machine-data
+              mountPath: /var/lib/cortex/sentinel-machine
+      volumes:
+        - name: sentinel-machine-data
+          hostPath:
+            path: {{ .Values.storage.queueHostPath }}
+            type: DirectoryOrCreate
+      tolerations:
+        - key: "cortex/sensitive"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+

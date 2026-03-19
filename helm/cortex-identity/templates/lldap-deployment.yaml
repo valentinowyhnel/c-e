@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lldap
+  namespace: cortex-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lldap
+  template:
+    metadata:
+      labels:
+        app: lldap
+    spec:
+      containers:
+        - name: lldap
+          image: lldap/lldap:v0.5.0
+          env:
+            - name: LLDAP_JWT_SECRET
+              value: change-me-phase2
+            - name: LLDAP_KEY_SEED
+              value: change-me-phase2-seed
+            - name: LLDAP_LDAP_BASE_DN
+              value: dc=cortex,dc=local
+            - name: LLDAP_LDAP_USER_PASS
+              value: admin-change-me
+          ports:
+            - containerPort: 3890
+              name: ldap
+            - containerPort: 17170
+              name: http
+          readinessProbe:
+            tcpSocket:
+              port: 3890
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lldap
+  namespace: cortex-system
+spec:
+  selector:
+    app: lldap
+  ports:
+    - name: ldap
+      port: 3890
+      targetPort: 3890
+    - name: http
+      port: 17170
+      targetPort: 17170

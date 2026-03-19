@@ -1,0 +1,21 @@
+[Unit]
+Description=Cortex Sentinel Machine
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cortex
+Group=cortex
+WorkingDirectory=/opt/cortex/sentinel-machine
+ExecStart=/usr/bin/python -m app.serve
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cortex/sentinel-machine
+
+[Install]
+WantedBy=multi-user.target

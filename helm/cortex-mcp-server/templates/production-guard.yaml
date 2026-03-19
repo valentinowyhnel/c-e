@@ -1,0 +1,8 @@
+{{- if eq .Values.environment "prod" -}}
+{{- if or (eq .Values.image.tag "dev") (eq .Values.image.tag "latest") (eq .Values.image.tag "") -}}
+{{- fail "cortex-mcp-server: production deployment requires a non-dev immutable image tag" -}}
+{{- end -}}
+{{- if not .Values.internalApi.required -}}
+{{- fail "cortex-mcp-server: production deployment requires internalApi.required=true" -}}
+{{- end -}}
+{{- end -}}

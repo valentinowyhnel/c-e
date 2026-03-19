@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package cortex.gateway.v1;
+
+option go_package = "github.com/cortexlabs/proto/gateway/v1;gatewayv1";
+
+message AuthzDecision {
+  bool allow = 1;
+  string reason = 2;
+  string session_id = 3;
+}
