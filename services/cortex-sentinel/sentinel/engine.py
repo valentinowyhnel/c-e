@@ -16,9 +16,16 @@ import structlog
 
 from .collectors.psutil_col import CollectedEvent, SentinelCollector
 
-ROOT = Path(__file__).resolve().parents[3] / "shared" / "cortex-core"
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+try:
+    import cortex_core  # noqa: F401
+except ImportError:
+    candidate = Path(__file__).resolve()
+    for parent in candidate.parents:
+        root = parent / "shared" / "cortex-core"
+        if root.exists():
+            if str(root) not in sys.path:
+                sys.path.insert(0, str(root))
+            break
 
 from cortex_core.contracts import (  # noqa: E402
     ActionClass,

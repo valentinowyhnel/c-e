@@ -4,6 +4,7 @@ metadata:
   name: cortex-sentinel
   namespace: cortex-system
   labels:
+    app: cortex-sentinel
     app.kubernetes.io/name: cortex-sentinel
     app.kubernetes.io/part-of: cortex
 spec:
@@ -17,6 +18,7 @@ spec:
   template:
     metadata:
       labels:
+        app: cortex-sentinel
         app.kubernetes.io/name: cortex-sentinel
         app.kubernetes.io/part-of: cortex
       annotations:
@@ -38,13 +40,13 @@ spec:
         runAsUser: 1000
       containers:
         - name: sentinel
-          image: cortex/cortex-sentinel:v1
+          image: cortex/cortex-sentinel:v1-fix2
           imagePullPolicy: Never
           command: ["python", "-m", "sentinel.main"]
           env:
             - name: ENTITY_ID
               valueFrom:
-                  fieldRef:
+                fieldRef:
                   fieldPath: spec.nodeName
             - name: ENTITY_TYPE
               value: "machine"
