@@ -1,0 +1,11 @@
+namespace: cortex-system
+image:
+  repository: curlimages/curl
+  tag: 8.10.1
+  pullPolicy: IfNotPresent
+targets:
+  - name: gateway-health
+    url: http://cortex-gateway.cortex-system.svc.cluster.local:8080/health
+  - name: trust-health
+    url: http://cortex-trust-engine.cortex-system.svc.cluster.local:8080/health
+

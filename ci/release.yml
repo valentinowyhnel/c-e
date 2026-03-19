@@ -1,0 +1,119 @@
+stages:
+  - supply-chain
+  - deploy-staging
+  - post-deploy-staging
+  - deploy-prod-canary
+  - post-deploy-prod
+  - promote
+
+generate-sbom:
+  stage: supply-chain
+  image: anchore/syft:v1.18.1
+  script:
+    - sh scripts/ci/generate_sbom.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/sbom/
+
+sign-artifacts:
+  stage: supply-chain
+  image: cgr.dev/chainguard/cosign:2.4.1
+  script:
+    - sh scripts/ci/sign_artifacts.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/signatures/
+
+verify-signed-artifacts:
+  stage: supply-chain
+  image: python:3.12-slim
+  script:
+    - python scripts/ci/verify_signed_artifacts.py
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/signed-artifacts.json
+
+scan-critical-vulnerabilities:
+  stage: supply-chain
+  image: python:3.12-slim
+  script:
+    - python scripts/ci/check_vulnerabilities.py
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/vulnerabilities.json
+
+deploy-staging:
+  stage: deploy-staging
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash kubectl helm
+  script:
+    - bash scripts/ci/deploy_staging.sh
+  environment:
+    name: staging
+
+post-deploy-staging:
+  stage: post-deploy-staging
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash curl jq kubectl
+  script:
+    - bash scripts/ci/post_deploy_verify.sh staging
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/post-deploy-staging.json
+
+deploy-prod-canary:
+  stage: deploy-prod-canary
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash kubectl helm
+  script:
+    - bash scripts/ci/deploy_prod_canary.sh
+  environment:
+    name: production
+
+check-canary-health:
+  stage: post-deploy-prod
+  image: python:3.12-slim
+  script:
+    - bash scripts/ci/check_canary_health.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/canary-health.json
+
+post-deploy-prod:
+  stage: post-deploy-prod
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash curl jq kubectl
+  script:
+    - bash scripts/ci/post_deploy_verify.sh production
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/post-deploy-prod.json
+
+check-rollback-readiness:
+  stage: post-deploy-prod
+  image: python:3.12-slim
+  script:
+    - python scripts/ci/check_rollback_readiness.py
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/rollback-readiness.json
+
+promote:
+  stage: promote
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash
+  script:
+    - bash scripts/ci/promote_release.sh

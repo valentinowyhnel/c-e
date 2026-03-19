@@ -1,0 +1,76 @@
+stages:
+  - validate
+  - integration
+  - ephemeral-env
+
+terraform-fmt:
+  stage: validate
+  image: hashicorp/terraform:1.9.8
+  script:
+    - terraform -chdir=infra/terraform fmt -check -recursive
+
+terraform-validate:
+  stage: validate
+  image: hashicorp/terraform:1.9.8
+  script:
+    - sh scripts/ci/terraform_validate.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/terraform.json
+
+terraform-plan-dry-run:
+  stage: validate
+  image: hashicorp/terraform:1.9.8
+  script:
+    - sh scripts/ci/terraform_plan_dry_run.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/terraform/plan.tfplan
+      - artifacts/reports/terraform-plan.json
+
+helm-lint:
+  stage: validate
+  image: alpine/helm:3.16.1
+  script:
+    - sh scripts/ci/helm_validate.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/helm-lint.json
+
+check-spiffe-attestation:
+  stage: validate
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash python3
+  script:
+    - bash scripts/ci/check_spiffe_attestation.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/spiffe-attestation.json
+
+infra-ephemeral-template:
+  stage: integration
+  image: alpine/helm:3.16.1
+  script:
+    - helm template cortex-ci-smoke helm/cortex-ci-smoke --namespace ${KUBE_NAMESPACE} > artifacts/helm/cortex-ci-smoke.yaml
+  artifacts:
+    when: always
+    paths:
+      - artifacts/helm/cortex-ci-smoke.yaml
+
+create-ephemeral-k8s:
+  stage: ephemeral-env
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash curl docker-cli kubectl helm
+  script:
+    - bash scripts/ci/spawn_ephemeral_env.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/ephemeral-env.json
+

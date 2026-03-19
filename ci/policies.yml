@@ -1,0 +1,29 @@
+stages:
+  - policy
+
+opa-format:
+  stage: policy
+  image: openpolicyagent/opa:0.68.0-static
+  script:
+    - opa fmt --fail policies
+
+opa-tests:
+  stage: policy
+  image: openpolicyagent/opa:0.68.0-static
+  script:
+    - sh scripts/ci/run_policy_tests.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/opa-coverage.json
+
+check-policy-regression:
+  stage: policy
+  image: python:3.12-slim
+  script:
+    - bash scripts/ci/check_policy_regression.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/policy-regression.json
+

@@ -1,0 +1,35 @@
+stages:
+  - validate
+  - unit
+  - build
+
+frontend-validate:
+  stage: validate
+  image: node:22-bookworm
+  script:
+    - bash scripts/ci/run_frontend_checks.sh validate
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/frontend-validate.json
+
+frontend-unit:
+  stage: unit
+  image: node:22-bookworm
+  script:
+    - bash scripts/ci/run_frontend_checks.sh test
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/frontend-unit.json
+
+frontend-build:
+  stage: build
+  image: node:22-bookworm
+  script:
+    - bash scripts/ci/run_frontend_checks.sh build
+  artifacts:
+    when: always
+    paths:
+      - artifacts/frontend/
+

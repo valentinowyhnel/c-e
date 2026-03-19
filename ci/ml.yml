@@ -1,0 +1,36 @@
+stages:
+  - ml-guard
+  - package
+
+check-model-integrity:
+  stage: ml-guard
+  image: python:3.12-slim
+  script:
+    - python scripts/ci/check_model_integrity.py
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/model-integrity.json
+
+ml-fpr-gate:
+  stage: ml-guard
+  image: python:3.12-slim
+  script:
+    - python scripts/ci/check_ml_metrics.py
+  artifacts:
+    when: always
+    paths:
+      - artifacts/reports/ml-metrics.json
+
+ml-package:
+  stage: package
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash tar
+  script:
+    - bash scripts/ci/package_models.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/models/
+

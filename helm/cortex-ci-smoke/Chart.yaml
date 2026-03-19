@@ -1,0 +1,7 @@
+apiVersion: v2
+name: cortex-ci-smoke
+description: Ephemeral smoke tests for Cortex GitLab CI
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
