@@ -1,0 +1,24 @@
+environment: prod
+
+image:
+  repository: cortex/cortex-sentinel
+  tag: "2026.03.20-prod"
+  pullPolicy: IfNotPresent
+
+entityType: machine
+
+resources:
+  requests:
+    memory: 128Mi
+    cpu: 100m
+  limits:
+    memory: 256Mi
+    cpu: 300m
+
+tolerations:
+  - key: cortex/sensitive
+    operator: Exists
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule

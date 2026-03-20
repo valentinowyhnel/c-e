@@ -41,6 +41,31 @@ Reference production values templates are provided in:
 - `helm/cortex-mcp-server/values-prod.example.yaml`
 - `helm/cortex-console/values-prod.example.yaml`
 - `helm/cortex-observability/values-prod.example.yaml`
+- `helm/cortex-sentinel/values-prod.example.yaml`
+
+## Sentinel v2 migration
+
+The universal Sentinel target is now the `helm/cortex-sentinel` DaemonSet.
+
+Migration rules:
+
+1. Disable the legacy single-replica Sentinel in `helm/cortex-agents`.
+2. Deploy `helm/cortex-sentinel` with an immutable image tag.
+3. Confirm `service/cortex-sentinel` selects `app.kubernetes.io/name=cortex-sentinel`.
+4. Validate:
+   - `GET /health`
+   - `POST /v1/validate-plan`
+5. Only then remove any remaining legacy `Deployment/cortex-sentinel`.
+
+The chart is now parameterized through:
+
+- `image.repository`
+- `image.tag`
+- `image.pullPolicy`
+- `environment`
+- `entityType`
+- `resources`
+- `tolerations`
 
 ## Internal API hardening
 
