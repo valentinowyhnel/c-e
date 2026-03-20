@@ -48,7 +48,7 @@ install_base_packages() {
   sudo apt-get update
   sudo apt-get install -y \
     git curl wget jq ca-certificates gnupg lsb-release \
-    apt-transport-https software-properties-common
+    apt-transport-https software-properties-common python3
 }
 
 install_docker_if_needed() {
@@ -56,9 +56,41 @@ install_docker_if_needed() {
     log "Docker deja installe"
     return
   fi
+
   log "Installation Docker"
-  curl -fsSL https://get.docker.com | sh
+
+  local ubuntu_codename=""
+  ubuntu_codename="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
+
+  if [ "$ubuntu_codename" = "focal" ]; then
+    log "Ubuntu Focal detecte: tentative Docker officielle puis bascule securisee si echec"
+  fi
+
+  if curl -fsSL https://get.docker.com | sh; then
+    log "Docker installe via get.docker.com"
+  else
+    log "Installation Docker officielle en echec, bascule vers docker.io du depot Ubuntu"
+    sudo apt-get update
+    sudo apt-get install -y docker.io
+    sudo systemctl enable docker
+    sudo systemctl start docker
+  fi
+
   sudo usermod -aG docker "${SUDO_USER:-$USER}" || true
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "ERREUR: docker n'a pas pu etre installe" >&2
+    exit 1
+  fi
+
+  if docker compose version >/dev/null 2>&1; then
+    log "Docker Compose v2 disponible"
+  else
+    log "ATTENTION: 'docker compose' indisponible"
+    log "Sur Focal avec docker.io, le plugin Compose v2 peut manquer"
+    log "Le plus fiable pour Cortex reste Ubuntu 22.04 ou 24.04"
+  fi
+
   echo "INFO: si docker est inaccessible apres ce script, reconnecte la session pour appliquer le groupe docker."
 }
 
@@ -147,6 +179,7 @@ main() {
   require_cmd kubectl
   require_cmd helm
   require_cmd kind
+  require_cmd python3
 
   run_repo_script "scripts/setup-cluster.sh"
   run_repo_script "scripts/setup-vault.sh"
