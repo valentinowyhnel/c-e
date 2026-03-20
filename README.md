@@ -70,6 +70,7 @@ Documentation associee:
 - `docs/UBUNTU_VM_INSTALL.md`
 - `docs/UBUNTU_VM_LEAN_INSTALL.md`
 - `docs/GITHUB_EPHEMERAL_RUNNER.md`
+- `docs/CORTEX_SIZING_REFERENCE.md`
 
 ## References
 
