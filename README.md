@@ -49,6 +49,28 @@ scripts/setup-agents.sh
 scripts/validate-sentinel-machine.sh
 ```
 
+## Installation Ubuntu
+
+Pour une VM Ubuntu classique:
+
+```bash
+chmod +x scripts/install-cortex-ubuntu.sh
+bash scripts/install-cortex-ubuntu.sh
+```
+
+Pour une VM Ubuntu contrainte `8 Go RAM / 4 CPU`:
+
+```bash
+chmod +x scripts/install-cortex-ubuntu-lean.sh
+bash scripts/install-cortex-ubuntu-lean.sh
+```
+
+Documentation associee:
+
+- `docs/UBUNTU_VM_INSTALL.md`
+- `docs/UBUNTU_VM_LEAN_INSTALL.md`
+- `docs/GITHUB_EPHEMERAL_RUNNER.md`
+
 ## References
 
 - `AGENTS.md`: contraintes d'execution pour les agents.

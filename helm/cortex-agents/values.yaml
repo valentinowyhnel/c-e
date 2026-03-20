@@ -3,3 +3,6 @@ sentinelLegacy:
 
 mcpServer:
   enabled: false
+
+vllm:
+  enabled: true
