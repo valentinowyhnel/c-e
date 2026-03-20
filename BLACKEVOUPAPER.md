@@ -179,6 +179,13 @@ Le pipeline defensif actuel:
 - rejette les contenus offensifs bruts ou insuffisamment structures
 - route uniquement le contenu accepte vers les familles d'agents concernees
 
+Les sources internes actuellement branchees a cette curation sont:
+
+- `cortex-audit`
+- `cortex.ad.drifts`
+- resumes de chemins `BloodHound`
+- rapports SOC normalises
+
 Les familles d'agents actuellement ciblees sont:
 
 - `decision`

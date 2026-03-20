@@ -57,6 +57,14 @@ type GovernanceResponse = {
     noveltyPolicy: string[];
     unsafeFilters: string[];
   }>;
+  trainingSources: Array<{
+    id: string;
+    label: string;
+    status: "implemented" | "partial" | "roadmap";
+    description: string;
+    path: string;
+    routedTo: string[];
+  }>;
   assignments: Record<string, Record<string, string>>;
   taskReports: TaskReport[];
   modelProbes: ModelProbe[];
@@ -504,6 +512,48 @@ export function ModelKeyControl() {
                         ))}
                       </div>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+            <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">Internal intelligence sources</div>
+            <h2 className="mt-2 text-2xl font-semibold text-ink">Sources internes branchees</h2>
+            <p className="mt-2 text-sm text-muted">
+              Les agents ne sont enrichis qu&apos;a partir de sources internes normalisees et curées. La source n&apos;accorde
+              jamais de droit d&apos;execution; elle alimente uniquement la connaissance defensive.
+            </p>
+            <div className="mt-5 space-y-3">
+              {data?.trainingSources.map((source) => (
+                <div key={source.id} className="rounded-2xl border border-border/70 bg-background/25 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-lg font-semibold text-ink">{source.label}</div>
+                      <div className="mt-1 text-sm text-muted">{source.description}</div>
+                    </div>
+                    <span
+                      className={`rounded-full border px-3 py-1 font-mono text-xs ${
+                        source.status === "implemented"
+                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                          : source.status === "partial"
+                            ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
+                            : "border-border/70 bg-background/30 text-muted"
+                      }`}
+                    >
+                      {source.status}
+                    </span>
+                  </div>
+                  <div className="mt-3 rounded-xl border border-border/60 bg-[#081321]/60 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-muted">
+                    {source.path}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {source.routedTo.map((agent) => (
+                      <span key={agent} className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-xs text-cyan-100">
+                        {agent}
+                      </span>
+                    ))}
                   </div>
                 </div>
               ))}

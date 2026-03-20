@@ -17,11 +17,18 @@ Implemented:
 - unsafe offensive marker rejection
 - routing of accepted samples toward the relevant agent families
 - CLI builder: `python scripts/runtime/build-attack-training-plan.py`
+- internal-source builder: `python scripts/runtime/build-internal-training-plan.py`
+- supported internal sources:
+  - `cortex-audit` incident events
+  - `cortex.ad.drifts`
+  - BloodHound attack-path summaries
+  - normalized SOC reports
 
 Partially operational:
 
 - training plan generation for `decision`, `remediation`, `ad`, `observer`, `soc`
 - governance visibility in the console models page
+- live export automation from running services is still environment-dependent
 
 Conceptual / roadmap:
 
@@ -59,6 +66,18 @@ python scripts/runtime/build-attack-training-plan.py samples.json --known known.
    - `skipped_known`
    - `rejected`
    - `agent_queues`
+
+## Internal-source workflow
+
+```bash
+python scripts/runtime/build-internal-training-plan.py \
+  --audit audit-events.json \
+  --drifts ad-drifts.json \
+  --attack-paths bloodhound-paths.json \
+  --soc-reports soc-reports.json \
+  --known known.json \
+  --output internal-plan.json
+```
 
 ## Why this is safer
 

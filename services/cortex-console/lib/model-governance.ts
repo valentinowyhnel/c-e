@@ -29,6 +29,15 @@ export type TrainingProfile = {
   unsafeFilters: string[];
 };
 
+export type TrainingSourceProfile = {
+  id: string;
+  label: string;
+  status: "implemented" | "partial" | "roadmap";
+  description: string;
+  path: string;
+  routedTo: string[];
+};
+
 export type GovernanceState = {
   assignments: Record<string, Record<string, string>>;
   updatedAt: string | null;
@@ -106,6 +115,41 @@ export const TRAINING_PROFILES: TrainingProfile[] = [
     focus: ["Analyst investigation narratives", "Attack path interpretation", "Forensic Q&A patterns"],
     noveltyPolicy: ["Prefer unseen investigation branches", "Skip incidents already represented in the knowledge registry"],
     unsafeFilters: ["Reject step-by-step offensive operator instructions", "Reject exfiltration recipes"]
+  }
+];
+
+export const TRAINING_SOURCE_PROFILES: TrainingSourceProfile[] = [
+  {
+    id: "audit-incidents",
+    label: "Audit incidents",
+    status: "implemented",
+    description: "Incidents audites Cortex transformes en echantillons defensifs pour privilege review, containment et investigation.",
+    path: "cortex-audit /v1/events -> build-internal-training-plan.py",
+    routedTo: ["decision", "remediation", "soc"]
+  },
+  {
+    id: "ad-drift",
+    label: "AD drift",
+    status: "implemented",
+    description: "Derives AD normalisees pour enrichir l'agent AD et les revues de privilege.",
+    path: "cortex.ad.drifts -> build-internal-training-plan.py",
+    routedTo: ["ad", "decision", "soc"]
+  },
+  {
+    id: "bloodhound-paths",
+    label: "BloodHound attack paths",
+    status: "implemented",
+    description: "Chemins d'attaque et expositions Tier 0 convertis en corpus defensif de privilege path.",
+    path: "bloodhound-ce api/v2/attack-paths -> build-internal-training-plan.py",
+    routedTo: ["ad", "decision", "remediation", "soc"]
+  },
+  {
+    id: "soc-reports",
+    label: "SOC normalized reports",
+    status: "implemented",
+    description: "Rapports SOC normalises avant curation pour enrichir investigation et correlation.",
+    path: "normalized report json -> build-internal-training-plan.py",
+    routedTo: ["soc", "observer", "decision"]
   }
 ];
 
@@ -230,6 +274,7 @@ export async function buildGovernanceView(state: GovernanceState) {
     models: MODEL_DEFINITIONS,
     agents: AGENT_DEFINITIONS,
     trainingProfiles: TRAINING_PROFILES,
+    trainingSources: TRAINING_SOURCE_PROFILES,
     assignments: state.assignments,
     taskReports,
     modelProbes,
