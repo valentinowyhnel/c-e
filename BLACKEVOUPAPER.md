@@ -713,6 +713,7 @@ Mais ils sont dangereux s'ils deviennent:
 - Derniere verification runtime reussie sur cluster local: `2026-03-19`
   - health checks verifies sur trust, mcp, obs-agent, audit, approval, console, auth, graph, orchestrator, gateway, vllm, bloodhound
   - hardening HTTP interne verifie sur trust, approval, audit, obs-agent
+  - Sentinel v2 daemonset repare et valide sur le cluster local
 - Limite de la session actuelle:
   - le contexte Kubernetes shell etait vide, mais la verification a ete restauree via `tmp-kind-kubeconfig.yaml`
   - la verification reste locale Kind, pas cloud pre-prod
@@ -765,14 +766,18 @@ Mais ils sont dangereux s'ils deviennent:
 - `cortex-sentinel`
 - infrastructure K8s associee
 
-#### Ecart critique constate
+#### Correction appliquee sur Sentinel
 
-- deux incarnations de `cortex-sentinel` coexistent actuellement:
-  - un `Deployment` legacy `app=cortex-sentinel` sain et expose par le service `cortex-sentinel`
-  - un `DaemonSet` v2 `app.kubernetes.io/name=cortex-sentinel` en `CrashLoopBackOff`
-- consequence:
-  - les checks `service/cortex-sentinel` ne valident pas le Sentinel v2 par noeud
-  - la posture immunitaire distribuee reelle n'est donc pas encore consideree `production_ready`
+- le `Deployment` legacy `cortex-sentinel` a ete retire
+- le service `cortex-sentinel` est maintenant aligne sur le `DaemonSet` v2
+- le runtime Sentinel v2 expose des endpoints de compatibilite:
+  - `GET /health`
+  - `POST /v1/validate-plan`
+- le `DaemonSet` v2 a ete reconcilie apres:
+  - suppression du demarrage `uv run` reseau-dependant
+  - correction du packaging Python runtime
+  - correction du bootstrap des imports partages
+  - correction d'un blocage Calico sur un noeud
 
 ### Vision
 

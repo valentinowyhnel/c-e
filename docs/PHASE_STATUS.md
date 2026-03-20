@@ -35,6 +35,7 @@
   - Kubernetes runtime revalidated via explicit kubeconfig `tmp-kind-kubeconfig.yaml`
   - `trust`, `mcp`, `obs-agent`, `audit`, `approval`, `console`, `auth`, `graph`, `orchestrator`, `gateway`, `vllm`, `bloodhound-ce` returned `200` on health endpoints
   - internal token enforcement revalidated on `trust`, `approval`, `audit`, `obs-agent`
-  - Sentinel discrepancy identified:
-    - legacy `Deployment/cortex-sentinel` healthy
-    - `DaemonSet/cortex-sentinel` v2 unhealthy (`CrashLoopBackOff`)
+  - Sentinel v2 repaired:
+    - legacy `Deployment/cortex-sentinel` removed
+    - `DaemonSet/cortex-sentinel` rolled out successfully
+    - compatibility endpoints `/health` and `/v1/validate-plan` validated on Sentinel v2

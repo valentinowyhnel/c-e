@@ -42,4 +42,4 @@ This checklist tracks the non-negotiable production requirements from the Cortex
 - `passed-local` Human approval service deployed in local Kind
 - `passed-local` Dedicated audit service deployed in local Kind
 - `missing` Cloud infrastructure apply and environment-specific values
-- `warning` Legacy `cortex-sentinel` Deployment is healthy, but Sentinel v2 DaemonSet is `CrashLoopBackOff`
+- `passed-preprod` Sentinel v2 DaemonSet rolled out on 3 nodes after runtime packaging and legacy-service cleanup

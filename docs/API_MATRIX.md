@@ -101,3 +101,11 @@
 - `cortex-gateway` -> `200 /health`
 - `cortex-vllm` -> `200 /health`
 - `bloodhound-ce` -> `200 /health`
+- `cortex-sentinel` -> `200 /health` on v2 daemonset pod
+
+## Sentinel compatibility API
+
+| Method | Path | Purpose | Success | Tested |
+|---|---|---|---|---|
+| `GET` | `/health` | Sentinel v2 health probe | `200` | runtime |
+| `POST` | `/v1/validate-plan` | Compatibility plan validation for orchestrator and health loops | `200` | runtime |
