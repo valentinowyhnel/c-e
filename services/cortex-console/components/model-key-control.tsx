@@ -51,6 +51,12 @@ type GovernanceResponse = {
   providers: ProviderInfo[];
   models: ModelInfo[];
   agents: AgentInfo[];
+  trainingProfiles: Array<{
+    agentId: string;
+    focus: string[];
+    noveltyPolicy: string[];
+    unsafeFilters: string[];
+  }>;
   assignments: Record<string, Record<string, string>>;
   taskReports: TaskReport[];
   modelProbes: ModelProbe[];
@@ -447,6 +453,60 @@ export function ModelKeyControl() {
                   Toutes les taches ont un modele aligne et verifiable.
                 </div>
               ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+            <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">Training hardening</div>
+            <h2 className="mt-2 text-2xl font-semibold text-ink">Corpus defensif par agent</h2>
+            <p className="mt-2 text-sm text-muted">
+              Cortex n&apos;ingere pas aveuglement du contenu d&apos;attaque. Chaque agent a un focus utile, une politique
+              de nouveaute et des filtres qui bloquent les contenus offensifs deja connus ou trop dangereux.
+            </p>
+
+            <div className="mt-5 space-y-4">
+              {data?.trainingProfiles.map((profile) => (
+                <div key={profile.agentId} className="rounded-2xl border border-border/70 bg-background/25 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-lg font-semibold text-ink">{profile.agentId}</div>
+                    <span className="rounded-full border border-cyan-500/40 bg-cyan-500/10 px-3 py-1 font-mono text-xs text-cyan-100">
+                      curated
+                    </span>
+                  </div>
+                  <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    <div>
+                      <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">Focus</div>
+                      <div className="mt-2 space-y-2 text-sm text-ink">
+                        {profile.focus.map((item) => (
+                          <div key={item} className="rounded-xl border border-border/60 bg-[#081321]/60 px-3 py-2">
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">Novelty policy</div>
+                      <div className="mt-2 space-y-2 text-sm text-amber-100">
+                        {profile.noveltyPolicy.map((item) => (
+                          <div key={item} className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">Unsafe filters</div>
+                      <div className="mt-2 space-y-2 text-sm text-rose-100">
+                        {profile.unsafeFilters.map((item) => (
+                          <div key={item} className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2">
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

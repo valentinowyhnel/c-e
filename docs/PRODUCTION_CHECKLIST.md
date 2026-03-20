@@ -25,6 +25,7 @@ This checklist tracks the non-negotiable production requirements from the Cortex
 - `pending` Immutable, signed audit pipeline validated
 - `pending` Rate limits tested under production load
 - `pending` vLLM model supply-chain review documented
+- `passed-local` Defensive training curation skips known attacks and rejects raw offensive payload markers
 - `pending` Dependency vulnerability review clean in production images
 - `pending` SBOM generated for each production image
 - `pending` SOC 2 Type 1 evidence package assembled

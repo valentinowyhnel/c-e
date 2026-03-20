@@ -11,7 +11,9 @@ export default function ModelsPage() {
           <h1 className="mt-2 text-3xl font-semibold text-ink">Cles API, verification et liaison agents</h1>
           <p className="mt-2 max-w-3xl text-sm text-muted">
             Cette page centralise les cles Anthropic et OpenAI, les modeles vLLM relies au MCP, puis
-            verifie que chaque agent utilise un modele compatible avec ses taches reelles.
+            verifie que chaque agent utilise un modele compatible avec ses taches reelles. Elle expose aussi
+            la politique de curation defensive qui evite de re-entrainer Cortex sur des attaques deja connues
+            ou sur des contenus offensifs bruts.
           </p>
         </div>
         <ModelKeyControl />

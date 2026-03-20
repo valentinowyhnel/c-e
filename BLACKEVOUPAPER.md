@@ -134,6 +134,7 @@ Le document distingue maintenant explicitement trois niveaux:
 - blocage par maturite selon l'environnement
 - enrichissement audit/approval avec correlation, execution mode et maturity
 - contrats de messages versionnes pour les taches et resultats agents
+- curation defensive du contenu d'entrainement avec filtre de nouveaute et rejet des contenus offensifs bruts
 
 #### Partiellement operationnel
 
@@ -142,6 +143,7 @@ Le document distingue maintenant explicitement trois niveaux:
 - comite decisionnel multi-modeles avec fournisseurs externes reels
 - forensic preserve branche a de vrais collecteurs specialises
 - evaluation blast radius exhaustive quand le graphe est degrade
+- planification d'entrainement par agent avec filtrage des attaques deja couvertes
 
 #### Conceptuel / roadmap
 
@@ -159,6 +161,31 @@ Le document distingue maintenant explicitement trois niveaux:
 - `dry_run` force un chemin `prepare_only` hors lecture seule
 - les capacites `experimental` ou `stubbed` sont refusées en environnement `prod`
 - les operations sensibles exigent des scopes explicites comme `admin:write`
+- le corpus d'entrainement ne doit pas re-ingere des attaques deja connues ni des payloads offensifs weaponises
+
+### Gouvernance d'entrainement
+
+Le plan d'entrainement et d'enrichissement des agents est borne par trois regles:
+
+- la connaissance nouvelle doit etre differente du corpus deja couvert
+- les contenus offensifs bruts doivent etre rejetes
+- l'enrichissement de modele ne donne jamais une autorite d'execution
+
+Le pipeline defensif actuel:
+
+- prend des resumes d'attaques reelles avec techniques etiquetees
+- calcule une empreinte stable et une similarite de recouvrement
+- ignore le contenu deja couvert par le registre de connaissance
+- rejette les contenus offensifs bruts ou insuffisamment structures
+- route uniquement le contenu accepte vers les familles d'agents concernees
+
+Les familles d'agents actuellement ciblees sont:
+
+- `decision`
+- `remediation`
+- `ad`
+- `observer`
+- `soc`
 
 ### Modes degrades explicites
 

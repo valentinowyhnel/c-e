@@ -22,6 +22,13 @@ export type AgentDefinition = {
   tasks: string[];
 };
 
+export type TrainingProfile = {
+  agentId: string;
+  focus: string[];
+  noveltyPolicy: string[];
+  unsafeFilters: string[];
+};
+
 export type GovernanceState = {
   assignments: Record<string, Record<string, string>>;
   updatedAt: string | null;
@@ -67,6 +74,39 @@ export const AGENT_DEFINITIONS: AgentDefinition[] = [
   { id: "soc", label: "SOC Agent", description: "Investigation, reponse aux analystes et chemins d'attaque.", tasks: ["threat_classification", "incident_investigation", "attack_path_analysis", "soc_question_answering"] },
   { id: "observer", label: "Observer Agent", description: "Correlation continue et suivi ressources.", tasks: ["event_correlation", "anomaly_detection", "resource_pressure_analysis", "telemetry_summarization"] },
   { id: "mcp-router", label: "MCP Router", description: "Selection de modele et garantie schema / tools.", tasks: ["request_classification", "tool_routing", "schema_validation", "code_generation"] }
+];
+
+export const TRAINING_PROFILES: TrainingProfile[] = [
+  {
+    agentId: "decision",
+    focus: ["Privilege escalation review", "High-risk containment rationale", "Approval-grade decision memos"],
+    noveltyPolicy: ["Skip exact corpus fingerprints", "Skip techniques already covered at high overlap"],
+    unsafeFilters: ["Reject raw payload launchers", "Reject offensive code snippets without defensive framing"]
+  },
+  {
+    agentId: "ad",
+    focus: ["Kerberoast, delegation and DCSync misuse", "GPO drift and privilege path review", "Service account defensive validation"],
+    noveltyPolicy: ["Prefer new ATT&CK techniques", "Skip already-covered AD attack families"],
+    unsafeFilters: ["Reject credential dumping recipes", "Reject direct exploit playbooks"]
+  },
+  {
+    agentId: "remediation",
+    focus: ["Containment patterns", "Blast radius reasoning", "Forensic-preserve before irreversible action"],
+    noveltyPolicy: ["Prefer incidents with new rollback lessons", "Skip known containment archetypes already encoded"],
+    unsafeFilters: ["Reject destructive automation examples", "Reject irreversible action guides without policy framing"]
+  },
+  {
+    agentId: "observer",
+    focus: ["Beaconing and anomaly traces", "Telemetry bursts", "Process and network drift"],
+    noveltyPolicy: ["Prefer net-new detection traces", "Skip recurrent low-signal noise families"],
+    unsafeFilters: ["Reject raw offensive beacons", "Reject opaque binaries without defensive annotations"]
+  },
+  {
+    agentId: "soc",
+    focus: ["Analyst investigation narratives", "Attack path interpretation", "Forensic Q&A patterns"],
+    noveltyPolicy: ["Prefer unseen investigation branches", "Skip incidents already represented in the knowledge registry"],
+    unsafeFilters: ["Reject step-by-step offensive operator instructions", "Reject exfiltration recipes"]
+  }
 ];
 
 const PROVIDER_LABELS: Record<ProviderId, string> = {
@@ -189,6 +229,7 @@ export async function buildGovernanceView(state: GovernanceState) {
     }),
     models: MODEL_DEFINITIONS,
     agents: AGENT_DEFINITIONS,
+    trainingProfiles: TRAINING_PROFILES,
     assignments: state.assignments,
     taskReports,
     modelProbes,
