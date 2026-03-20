@@ -17,6 +17,10 @@ Le script dedie:
 - installe et lance le frontend en dernier
 - evite `vLLM` si la RAM est insuffisante
 
+Ce mode est a utiliser seulement si tu acceptes un fonctionnement reduit. Pour le dimensionnement realiste, voir:
+
+- [docs/CORTEX_SIZING_REFERENCE.md](/C:/Users/dell/Desktop/coco/docs/CORTEX_SIZING_REFERENCE.md)
+
 ## Fichier
 
 - [scripts/install-cortex-ubuntu-lean.sh](/C:/Users/dell/Desktop/coco/scripts/install-cortex-ubuntu-lean.sh)
@@ -89,3 +93,8 @@ ENABLE_VLLM=0 bash scripts/install-cortex-ubuntu-lean.sh
 13. streams NATS
 14. validation backend
 15. frontend console en dernier
+
+## Voir aussi
+
+- [docs/UBUNTU_VM_INSTALL.md](/C:/Users/dell/Desktop/coco/docs/UBUNTU_VM_INSTALL.md)
+- [docs/CORTEX_SIZING_REFERENCE.md](/C:/Users/dell/Desktop/coco/docs/CORTEX_SIZING_REFERENCE.md)

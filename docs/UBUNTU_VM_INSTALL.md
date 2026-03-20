@@ -2,7 +2,7 @@
 
 ## Objectif
 
-Installer Cortex sur une VM Ubuntu unique avec `kind`, dans l'ordre correct du depot, en enchaînant:
+Installer Cortex sur une VM Ubuntu unique avec `kind`, dans l'ordre correct du depot, en enchainant:
 
 - environnement local
 - cluster Kubernetes
@@ -15,12 +15,25 @@ Installer Cortex sur une VM Ubuntu unique avec `kind`, dans l'ordre correct du d
 - console
 - validation runtime
 
+## Quand utiliser ce mode
+
+Ce mode est adapte a:
+
+- une VM de dev ou de demo
+- une machine avec marge correcte
+- un usage mono-machine
+
+Pour une petite VM `8 Go RAM / 4 CPU`, prefere:
+
+- [docs/UBUNTU_VM_LEAN_INSTALL.md](/C:/Users/dell/Desktop/coco/docs/UBUNTU_VM_LEAN_INSTALL.md)
+- [docs/CORTEX_SIZING_REFERENCE.md](/C:/Users/dell/Desktop/coco/docs/CORTEX_SIZING_REFERENCE.md)
+
 ## Pre-requis VM
 
 - Ubuntu 22.04 ou 24.04
-- 8 vCPU / 16 Go RAM minimum
-- 16 vCPU / 32 Go RAM recommande pour le profil `max`
-- 120 Go disque minimum
+- 16 Go RAM minimum recommandes
+- 8 vCPU recommandes
+- 150 Go disque minimum
 
 ## Execution rapide
 
@@ -79,7 +92,13 @@ http://127.0.0.1:3000
 
 ## Limites
 
-- ce mode est un environnement local fort, pas une production multi-noeuds
+- ce mode reste un environnement local fort, pas une production multi-noeuds
 - Vault est en mode dev dans ce parcours
 - les secrets d'exemple doivent etre remplaces pour un usage reel
 - les performances de `vLLM` dependent fortement de la RAM et du GPU
+
+## Voir aussi
+
+- [docs/UBUNTU_VM_LEAN_INSTALL.md](/C:/Users/dell/Desktop/coco/docs/UBUNTU_VM_LEAN_INSTALL.md)
+- [docs/CORTEX_SIZING_REFERENCE.md](/C:/Users/dell/Desktop/coco/docs/CORTEX_SIZING_REFERENCE.md)
+- [docs/GITHUB_EPHEMERAL_RUNNER.md](/C:/Users/dell/Desktop/coco/docs/GITHUB_EPHEMERAL_RUNNER.md)
