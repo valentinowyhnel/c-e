@@ -24,6 +24,12 @@ spec:
               value: http://cortex-sentinel:8080
             - name: MCP_URL
               value: http://cortex-mcp-server:8080
+            - name: CORTEX_COLAB_SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cortex-colab-sync
+                  key: shared-secret
+                  optional: true
           ports:
             - containerPort: 8080
               name: http

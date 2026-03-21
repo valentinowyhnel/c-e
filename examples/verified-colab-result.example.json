@@ -1,0 +1,27 @@
+{
+  "source": "google_colab",
+  "run_id": "colab-run-2026-03-21-001",
+  "training_plan_id": "plan-2026-03-21-decision-ad",
+  "target_agents": [
+    "decision",
+    "ad"
+  ],
+  "dataset_fingerprint": "fp-curated-20260321-abcdef1234567890",
+  "knowledge_registry_fingerprint": "known-registry-20260321-1234",
+  "accepted_item_ids": [
+    "evt-9",
+    "drift-9"
+  ],
+  "verification": {
+    "status": "verified",
+    "novelty_gate_applied": true,
+    "offensive_content_filtered": true,
+    "known_attack_filter_applied": true,
+    "human_reviewed": true,
+    "accepted_count": 2,
+    "skipped_known_count": 4,
+    "rejected_count": 1,
+    "reviewer": "analyst@cortex.local",
+    "notes": "Curated from internal audit plus AD drift. No raw offensive payload retained."
+  }
+}
