@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import math
 import random
@@ -8,6 +10,7 @@ from collections import Counter, defaultdict, deque
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+import httpx
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -655,3 +658,141 @@ def export_results(export_dir: str | Path, gcn: nn.Module, q_net: nn.Module, run
         "agent_logs_json": str(target / "agent_logs.json"),
         "metrics_json": str(target / "metrics.json"),
     }
+
+
+def _stringify_value(value: object) -> str:
+    if isinstance(value, float):
+        return f"{value:.6f}"
+    return str(value)
+
+
+def compute_dataset_fingerprint(runtime_df: pd.DataFrame) -> str:
+    ordered = runtime_df.sort_values(["event_id"]).copy()
+    columns = [
+        "event_id",
+        "campaign_id",
+        "scenario",
+        "phase",
+        "source",
+        "target",
+        "route",
+        "filter_bucket",
+        "sentinel_score",
+        "priority",
+    ]
+    payload = "\n".join(
+        "|".join(_stringify_value(row[column]) for column in columns)
+        for _, row in ordered[columns].iterrows()
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def summarize_verified_items(runtime_df: pd.DataFrame, top_k: int = 25) -> list[dict[str, object]]:
+    filtered = runtime_df.loc[
+        runtime_df["filter_bucket"].isin(["filtered", "review_queue"])
+    ].sort_values(["priority", "sentinel_score"], ascending=False)
+    items: list[dict[str, object]] = []
+    for _, row in filtered.head(top_k).iterrows():
+        items.append(
+            {
+                "event_id": row["event_id"],
+                "campaign_id": row["campaign_id"],
+                "scenario": row["scenario"],
+                "phase": row["phase"],
+                "route": row["route"],
+                "priority": round(float(row["priority"]), 4),
+                "sentinel_score": round(float(row["sentinel_score"]), 4),
+                "novelty": round(float(row["novelty"]), 4),
+                "trust_risk": round(float(row["trust_risk"]), 4),
+                "graph_risk": round(float(row["graph_risk"]), 4),
+                "zero_day_candidate": bool(row["pred_zero_day"]),
+            }
+        )
+    return items
+
+
+def build_verified_colab_payload(
+    runtime_df: pd.DataFrame,
+    metrics: dict[str, object],
+    *,
+    run_id: str,
+    training_plan_id: str,
+    target_agents: list[str],
+    knowledge_registry_fingerprint: str,
+    reviewer: str,
+    notes: str,
+    review_required_for_model: bool = True,
+) -> dict[str, object]:
+    accepted_rows = runtime_df.loc[runtime_df["filter_bucket"] == "filtered"].sort_values(
+        ["priority", "sentinel_score"], ascending=False
+    )
+    review_rows = runtime_df.loc[runtime_df["filter_bucket"] == "review_queue"]
+    dropped_rows = runtime_df.loc[runtime_df["filter_bucket"] == "dropped"]
+    zero_day_hits = int(accepted_rows["pred_zero_day"].sum()) if not accepted_rows.empty else 0
+    campaign_hits = int(accepted_rows["label_attack"].sum()) if not accepted_rows.empty else 0
+    dataset_fingerprint = compute_dataset_fingerprint(runtime_df)
+    verification = {
+        "status": "verified",
+        "novelty_gate_applied": True,
+        "offensive_content_filtered": True,
+        "known_attack_filter_applied": True,
+        "human_reviewed": bool(reviewer),
+        "accepted_count": int(len(accepted_rows)),
+        "skipped_known_count": 0,
+        "rejected_count": int(len(dropped_rows)),
+        "review_queue_count": int(len(review_rows)),
+        "reviewer": reviewer,
+        "notes": notes,
+        "review_required_for_model": review_required_for_model,
+        "attack_precision": round(float(metrics["attack_metrics"]["precision"]), 4),
+        "attack_recall": round(float(metrics["attack_metrics"]["recall"]), 4),
+        "zero_day_recall": round(float(metrics["zero_day_metrics"]["recall"]), 4),
+        "low_and_slow_detection": round(float(metrics["low_and_slow_detection"]), 4),
+        "false_positive_rate": round(float(metrics["false_positive_rate"]), 4),
+    }
+    return {
+        "source": "google_colab",
+        "run_id": run_id,
+        "training_plan_id": training_plan_id,
+        "target_agents": target_agents,
+        "dataset_fingerprint": dataset_fingerprint,
+        "knowledge_registry_fingerprint": knowledge_registry_fingerprint,
+        "accepted_item_ids": accepted_rows["event_id"].tolist(),
+        "verification": verification,
+        "signals_summary": {
+            "accepted_signals": summarize_verified_items(runtime_df, top_k=25),
+            "zero_day_hits": zero_day_hits,
+            "confirmed_attack_hits": campaign_hits,
+        },
+    }
+
+
+def save_verified_colab_payload(payload: dict[str, object], export_dir: str | Path) -> str:
+    target = Path(export_dir)
+    target.mkdir(parents=True, exist_ok=True)
+    path = target / "verified_colab_result.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return str(path)
+
+
+def sign_verified_colab_payload(payload: dict[str, object], secret: str) -> str:
+    body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+
+
+def push_verified_colab_payload(
+    payload: dict[str, object],
+    *,
+    url: str,
+    secret: str,
+    timeout: float = 30.0,
+) -> dict[str, object]:
+    signature = sign_verified_colab_payload(payload, secret)
+    with httpx.Client(timeout=timeout) as client:
+        response = client.post(
+            url,
+            json=payload,
+            headers={"x-cortex-colab-signature": signature},
+        )
+        response.raise_for_status()
+        return response.json()

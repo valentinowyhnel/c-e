@@ -139,7 +139,14 @@ Artifacts provided in the repo:
 
 - `examples/verified-colab-result.example.json`
 - `notebooks/cortex_colab_sync.ipynb`
+- `notebooks/cortex_apt_multiagent_rl.ipynb`
 - `scripts/runtime/start-colab-cortex-sync.ps1`
+
+The APT notebook now includes a final section that:
+
+- builds a verified Colab payload from the simulated/runtime risk signals
+- saves it as `verified_colab_result.json`
+- can push it directly to `cortex-orchestrator` with HMAC signing
 
 Expected verified payload shape:
 
