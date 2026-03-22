@@ -61,6 +61,7 @@ def run_training(
                 "anomaly_score": models["anomaly"].score(features),
                 "novelty_score": features["novelty_score"],
                 "trust_score": max(0.0, min(1.0, 1.0 - models["trust"].score(features))),
+                "trust_risk": features["trust_risk"],
                 "temporal_score": features["temporal_score"],
                 "graph_score": models["graph"].score(features),
                 "campaign_score": max(features["campaign_score"], models["hunter"].score(features)),
