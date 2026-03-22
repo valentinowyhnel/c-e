@@ -93,19 +93,38 @@ class SentinelRL:
     ) -> None:
         self.buffer.add(Experience(state, action, reward, next_state, done))
 
+    @staticmethod
+    def _action_strength(action: int) -> float:
+        return [0.0, 0.25, 0.5, 0.8, 1.0][action]
+
+    @staticmethod
+    def _action_cost(action: int) -> float:
+        return [0.0, 0.05, 0.12, 0.24, 0.42][action]
+
     def compute_reward(self, action: int, state: np.ndarray, ground_truth: int) -> float:
-        risk = float((state[0] + state[1] + (1.0 - state[2]) + state[3] + state[4] + state[5]) / 6.0)
+        anomaly, novelty, trust, temporal, graph, campaign = [float(x) for x in state]
+        trust_risk = 1.0 - trust
+        attack_pressure = 0.24 * anomaly + 0.18 * novelty + 0.18 * trust_risk + 0.14 * temporal + 0.14 * graph + 0.12 * campaign
+        criticality = 0.55 * graph + 0.45 * campaign
+        early_signal = 0.55 * novelty + 0.45 * temporal
+        action_strength = self._action_strength(action)
+        action_cost = self._action_cost(action)
+
         if ground_truth == 1:
-            if action in {2, 3, 4}:
-                return 1.4 + risk
-            if action == 1:
-                return 0.35 + 0.3 * risk
-            return -1.15
-        if action == 0:
-            return 0.55 - 0.2 * risk
-        if action == 1:
-            return 0.18 - 0.05 * risk
-        return -0.7 - 0.3 * risk
+            target_strength = min(1.0, 0.20 + 0.72 * attack_pressure + 0.18 * criticality)
+            alignment_bonus = 1.55 - 1.90 * (action_strength - target_strength) ** 2
+            early_bonus = 0.35 * early_signal * max(0.0, action_strength - 0.20)
+            miss_penalty = 1.25 * max(0.0, target_strength - action_strength) ** 2
+            underreaction_penalty = 0.55 * criticality * max(0.0, 0.75 - action_strength)
+            reward = alignment_bonus + early_bonus - miss_penalty - underreaction_penalty - action_cost
+        else:
+            benign_budget = max(0.0, 0.06 + 0.18 * attack_pressure)
+            alignment_bonus = 0.92 - 1.20 * (action_strength - benign_budget) ** 2
+            false_positive_penalty = 1.55 * max(0.0, action_strength - benign_budget) ** 2
+            heavy_action_penalty = 0.55 * max(0.0, action_strength - 0.35) ** 2
+            reward = alignment_bonus - false_positive_penalty - heavy_action_penalty - 0.8 * action_cost
+
+        return float(np.clip(reward, -2.5, 2.5))
 
     def update_policy(self, batch_size: int = 64) -> float:
         if len(self.buffer) < batch_size:
@@ -132,4 +151,3 @@ class SentinelRL:
         loss_value = float(loss.item())
         self.losses.append(loss_value)
         return loss_value
-
