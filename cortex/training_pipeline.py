@@ -68,7 +68,16 @@ def run_training(
             state = build_state(scores)
             sentinel_result = sentinel.process_event(event, state)
             ground_truth = int(event["label_attack"])
-            reward = sentinel.rl.compute_reward(sentinel_result["action_id"], state, ground_truth)
+            reward = sentinel.rl.compute_reward(
+                sentinel_result["action_id"],
+                state,
+                ground_truth,
+                context={
+                    "blast_radius": float(event.get("blast_radius", 0.0)),
+                    "asset_criticality": float(event.get("asset_criticality", 0.0)),
+                    "crown_jewel": bool(event.get("metadata", {}).get("crown_jewel", False)),
+                },
+            )
             next_state = state.copy()
             sentinel.rl.store_experience(state, sentinel_result["action_id"], reward, next_state, done=idx == len(episode_events) - 1)
             episode_reward += reward

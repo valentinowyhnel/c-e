@@ -29,6 +29,8 @@ class EventRecord:
     graph_score: float
     campaign_score: float
     anomaly_score: float
+    blast_radius: float
+    asset_criticality: float
     label_attack: int
     metadata: dict[str, object] = field(default_factory=dict)
 
@@ -72,6 +74,9 @@ def simulate_events(
         temporal = _clip(campaign_pressure + rng.uniform(-0.08, 0.08))
         graph = _clip(rng.uniform(base_low, base_high) + (0.18 if phase in {"lateral_movement", "escalation"} else 0.0))
         severity = _clip(0.2 + 0.25 * attack + 0.18 * (phase == "escalation") + 0.22 * (phase == "exfiltration"))
+        crown_jewel = target in {"dc-0", "db-0", "admin-0"}
+        blast_radius = _clip(0.15 + 0.45 * graph + 0.20 * campaign_pressure + 0.20 * (phase in {"lateral_movement", "escalation", "exfiltration"}))
+        asset_criticality = _clip(0.25 + 0.55 * crown_jewel + 0.15 * (target.startswith("srv") or target.startswith("db")))
         events.append(
             EventRecord(
                 event_id=str(uuid.uuid4()),
@@ -90,8 +95,10 @@ def simulate_events(
                 graph_score=graph,
                 campaign_score=campaign_pressure,
                 anomaly_score=anomaly,
+                blast_radius=blast_radius,
+                asset_criticality=asset_criticality,
                 label_attack=attack,
-                metadata={"crown_jewel": target in {"dc-0", "db-0", "admin-0"}},
+                metadata={"crown_jewel": crown_jewel},
             )
         )
     return events
@@ -110,4 +117,3 @@ def simulate_dataset(
     for episode in range(episodes):
         all_events.extend(simulate_events(episode=episode, num_events=num_events, seed=seed + episode))
     return events_to_frame(all_events)
-

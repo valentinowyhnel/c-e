@@ -101,27 +101,39 @@ class SentinelRL:
     def _action_cost(action: int) -> float:
         return [0.0, 0.05, 0.12, 0.24, 0.42][action]
 
-    def compute_reward(self, action: int, state: np.ndarray, ground_truth: int) -> float:
+    def compute_reward(
+        self,
+        action: int,
+        state: np.ndarray,
+        ground_truth: int,
+        context: dict[str, float | bool] | None = None,
+    ) -> float:
         anomaly, novelty, trust, temporal, graph, campaign = [float(x) for x in state]
+        context = context or {}
         trust_risk = 1.0 - trust
         attack_pressure = 0.24 * anomaly + 0.18 * novelty + 0.18 * trust_risk + 0.14 * temporal + 0.14 * graph + 0.12 * campaign
         criticality = 0.55 * graph + 0.45 * campaign
         early_signal = 0.55 * novelty + 0.45 * temporal
         action_strength = self._action_strength(action)
         action_cost = self._action_cost(action)
+        blast_radius = float(context.get("blast_radius", 0.0))
+        asset_criticality = float(context.get("asset_criticality", 0.0))
+        crown_jewel = 1.0 if bool(context.get("crown_jewel", False)) else 0.0
+        containment_sensitivity = min(1.0, 0.55 * blast_radius + 0.30 * asset_criticality + 0.15 * crown_jewel)
 
         if ground_truth == 1:
-            target_strength = min(1.0, 0.20 + 0.72 * attack_pressure + 0.18 * criticality)
+            target_strength = min(1.0, 0.18 + 0.62 * attack_pressure + 0.12 * criticality + 0.22 * containment_sensitivity)
             alignment_bonus = 1.55 - 1.90 * (action_strength - target_strength) ** 2
             early_bonus = 0.35 * early_signal * max(0.0, action_strength - 0.20)
             miss_penalty = 1.25 * max(0.0, target_strength - action_strength) ** 2
-            underreaction_penalty = 0.55 * criticality * max(0.0, 0.75 - action_strength)
-            reward = alignment_bonus + early_bonus - miss_penalty - underreaction_penalty - action_cost
+            underreaction_penalty = (0.55 * criticality + 0.65 * containment_sensitivity) * max(0.0, 0.78 - action_strength)
+            containment_bonus = 0.30 * containment_sensitivity * max(0.0, action_strength - 0.45)
+            reward = alignment_bonus + early_bonus + containment_bonus - miss_penalty - underreaction_penalty - action_cost
         else:
-            benign_budget = max(0.0, 0.06 + 0.18 * attack_pressure)
+            benign_budget = max(0.0, 0.05 + 0.15 * attack_pressure + 0.08 * containment_sensitivity)
             alignment_bonus = 0.92 - 1.20 * (action_strength - benign_budget) ** 2
-            false_positive_penalty = 1.55 * max(0.0, action_strength - benign_budget) ** 2
-            heavy_action_penalty = 0.55 * max(0.0, action_strength - 0.35) ** 2
+            false_positive_penalty = (1.55 + 0.95 * containment_sensitivity) * max(0.0, action_strength - benign_budget) ** 2
+            heavy_action_penalty = (0.55 + 0.70 * containment_sensitivity) * max(0.0, action_strength - 0.35) ** 2
             reward = alignment_bonus - false_positive_penalty - heavy_action_penalty - 0.8 * action_cost
 
         return float(np.clip(reward, -2.5, 2.5))
