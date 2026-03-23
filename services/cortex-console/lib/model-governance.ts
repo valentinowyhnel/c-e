@@ -66,6 +66,27 @@ type ValidationIssue = {
   modelId?: string;
 };
 
+type AgentRuntimeStatus = {
+  agentId: string;
+  installed: boolean;
+  status: "healthy" | "degraded" | "missing";
+  readyTasks: number;
+  totalTasks: number;
+  modelsInUse: string[];
+  providersInUse: ProviderId[];
+  issueCount: number;
+  headline: string;
+};
+
+type ProviderRuntimeStatus = {
+  providerId: ProviderId;
+  configured: boolean;
+  reachable: boolean;
+  status: "healthy" | "degraded" | "missing";
+  headline: string;
+  detail: string;
+};
+
 export const MODEL_DEFINITIONS: ModelDefinition[] = [
   { id: "phi3-mini", label: "Phi-3 Mini", provider: "vllm_local", role: "Routing et classification courte", requiresKey: false, preferredFor: ["request_classification", "tool_routing", "schema_validation", "telemetry_summarization"] },
   { id: "mistral-7b", label: "Mistral 7B", provider: "vllm_local", role: "Menaces, anomalies, correlation", requiresKey: false, preferredFor: ["threat_classification", "anomaly_detection", "event_correlation", "resource_pressure_analysis"] },
@@ -259,6 +280,76 @@ export async function buildGovernanceView(state: GovernanceState) {
     }
   }
 
+  const agentStatuses: AgentRuntimeStatus[] = AGENT_DEFINITIONS.map((agent) => {
+    const reports = taskReports.filter((report) => report.agentId === agent.id);
+    const readyTasks = reports.filter((report) => report.ready).length;
+    const modelsInUse = Array.from(new Set(reports.map((report) => report.modelId).filter((value): value is string => Boolean(value))));
+    const providersInUse = Array.from(
+      new Set(
+        modelsInUse
+          .map((modelId) => modelById(modelId)?.provider)
+          .filter((provider): provider is ProviderId => Boolean(provider))
+      )
+    );
+    const issueCount = issues.filter((issue) => issue.agentId === agent.id).length;
+    const installed = modelsInUse.length > 0;
+    const status =
+      !installed ? "missing" : readyTasks === reports.length && issueCount === 0 ? "healthy" : "degraded";
+    const headline =
+      status === "healthy"
+        ? "Toutes les taches de l'agent sont reliees et exploitables."
+        : status === "missing"
+          ? "Aucun binding actif. L'agent n'est pas exploitable."
+          : "Bindings presents, mais la chaine de confiance ou de readiness est incomplete.";
+
+    return {
+      agentId: agent.id,
+      installed,
+      status,
+      readyTasks,
+      totalTasks: reports.length,
+      modelsInUse,
+      providersInUse,
+      issueCount,
+      headline
+    };
+  });
+
+  const providerStatuses: ProviderRuntimeStatus[] = (Object.keys(PROVIDER_LABELS) as ProviderId[]).map((providerId) => {
+    const providerModels = MODEL_DEFINITIONS.filter((model) => model.provider === providerId);
+    const providerProbes = modelProbes.filter((probe) => providerModels.some((model) => model.id === probe.modelId));
+    const configured = providerId === "vllm_local" ? true : Boolean(keys[providerId]);
+    const reachable =
+      providerId === "vllm_local"
+        ? mcpReachable
+        : providerProbes.some((probe) => probe.status === "verified");
+    const status =
+      !configured ? "missing" : providerProbes.every((probe) => probe.status === "verified") ? "healthy" : "degraded";
+    const headline =
+      providerId === "vllm_local"
+        ? mcpReachable
+          ? "Le dispatch local via MCP repond."
+          : "Le dispatch MCP n'est pas verifiable depuis la console."
+        : !configured
+          ? `La cle ${PROVIDER_LABELS[providerId]} n'est pas encore configuree.`
+          : status === "healthy"
+            ? `${PROVIDER_LABELS[providerId]} est pret pour les taches liees.`
+            : `${PROVIDER_LABELS[providerId]} est partiellement configure.`;
+    const detail =
+      providerId === "vllm_local"
+        ? `MCP ${mcpReachable ? "reachable" : "degraded"} · ${providerModels.length} modeles exposes.`
+        : `${configured ? "Key detectee" : "Key absente"} · ${providerProbes.filter((probe) => probe.status === "verified").length}/${providerProbes.length} modeles verifies.`;
+
+    return {
+      providerId,
+      configured,
+      reachable,
+      status,
+      headline,
+      detail
+    };
+  });
+
   return {
     updatedAt: state.updatedAt,
     mcpReachable,
@@ -278,6 +369,8 @@ export async function buildGovernanceView(state: GovernanceState) {
     assignments: state.assignments,
     taskReports,
     modelProbes,
+    agentStatuses,
+    providerStatuses,
     issues,
     summary: {
       agentsCovered: AGENT_DEFINITIONS.filter((agent) => agent.tasks.every((task) => taskReports.some((report) => report.agentId === agent.id && report.task === task && report.ready))).length,

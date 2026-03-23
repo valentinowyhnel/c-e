@@ -1,13 +1,13 @@
 "use client";
 
-import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS: Array<{ href: Route; label: string; hint: string }> = [
+const NAV_ITEMS: Array<{ href: string; label: string; hint: string }> = [
   { href: "/", label: "Cockpit", hint: "Vue globale" },
+  { href: "/agents", label: "Agents", hint: "Connexion et sante" },
   { href: "/models", label: "Modeles", hint: "Cles et liaisons" },
   { href: "/search", label: "Recherche", hint: "Moteur profond" },
   { href: "/attack-paths", label: "Attack Paths", hint: "Tier 0 et blast" },

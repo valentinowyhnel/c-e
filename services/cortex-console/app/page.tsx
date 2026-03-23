@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { ApprovalPanel } from "@/components/approval-panel";
+import { AgentConnectivitySummary } from "@/components/agent-connectivity-summary";
 import { DecisionTheater } from "@/components/decision-theater";
 import { IdentityGraph } from "@/components/identity-graph";
 import { IntelligenceFeed } from "@/components/intelligence-feed";
@@ -182,6 +183,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </section>
+
+        <AgentConnectivitySummary />
 
         <MachineFleetPanel />
         <DecisionTheater />

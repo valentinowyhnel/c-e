@@ -173,7 +173,7 @@ export function ModelConnectivityPanel() {
 
   return (
     <section className="space-y-6">
-      <div className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+      <div className="runtime-card rounded-3xl border border-white/10 p-5 shadow-panel">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">
@@ -197,19 +197,19 @@ export function ModelConnectivityPanel() {
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-4">
-          <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
+          <div className="metric-tile rounded-2xl border border-border/70 p-4">
             <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">Modeles verifies</div>
             <div className="mt-3 text-3xl font-semibold text-ink">
               {data?.summary.verifiedModels ?? 0}/{data?.summary.totalModels ?? 0}
             </div>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
+          <div className="metric-tile rounded-2xl border border-border/70 p-4">
             <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">Taches prêtes</div>
             <div className="mt-3 text-3xl font-semibold text-ink">
               {data?.summary.readyTasks ?? 0}/{data?.summary.totalTasks ?? 0}
             </div>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
+          <div className="metric-tile rounded-2xl border border-border/70 p-4">
             <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">MCP dispatch</div>
             <div
               className={`mt-3 inline-flex rounded-full border px-3 py-1 font-mono text-xs ${
@@ -221,7 +221,7 @@ export function ModelConnectivityPanel() {
               {data?.mcpReachable ? "reachable" : "degraded"}
             </div>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
+          <div className="metric-tile rounded-2xl border border-border/70 p-4">
             <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">Key backend</div>
             <div className="mt-3 text-sm font-semibold text-ink">
               {data?.keyBackend.source ?? "unknown"} {data?.keyBackend.writable ? "rw" : "ro"}
@@ -239,7 +239,7 @@ export function ModelConnectivityPanel() {
       <div className="grid gap-6 xl:grid-cols-2">
         {[claudeAudit, openAiAudit].map((provider) =>
           provider ? (
-            <div key={provider.id} className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+            <div key={provider.id} className="runtime-card rounded-3xl border border-white/10 p-5 shadow-panel">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">
@@ -255,7 +255,7 @@ export function ModelConnectivityPanel() {
 
               <div className="mt-5 grid gap-3">
                 {provider.checklist.map((item) => (
-                  <div key={item} className="rounded-2xl border border-border/70 bg-background/30 px-4 py-3 text-sm text-ink">
+                  <div key={item} className="rounded-2xl border border-border/70 bg-background/25 px-4 py-3 text-sm text-ink">
                     {item}
                   </div>
                 ))}
@@ -282,7 +282,7 @@ export function ModelConnectivityPanel() {
         )}
       </div>
 
-      <div className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+      <div className="runtime-card rounded-3xl border border-white/10 p-5 shadow-panel">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">All Models</div>

@@ -203,7 +203,7 @@ export function ModelKeyControl() {
 
   if (loading && !data) {
     return (
-      <section className="rounded-3xl border bg-panel/80 p-6 text-sm text-muted shadow-panel">
+      <section className="runtime-card rounded-3xl border border-white/10 p-6 text-sm text-muted shadow-panel">
         Chargement des liaisons modeles...
       </section>
     );
@@ -212,25 +212,25 @@ export function ModelKeyControl() {
   return (
     <section className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-4">
-        <div className="rounded-3xl border bg-panel/80 p-4 shadow-panel">
+        <div className="metric-tile rounded-3xl border border-white/10 p-4 shadow-panel">
           <div className="font-mono text-[11px] uppercase tracking-[0.24em] text-muted">Agents couverts</div>
           <div className="mt-3 text-3xl font-semibold text-ink">
             {data?.summary.agentsCovered}/{data?.summary.totalAgents}
           </div>
         </div>
-        <div className="rounded-3xl border bg-panel/80 p-4 shadow-panel">
+        <div className="metric-tile rounded-3xl border border-white/10 p-4 shadow-panel">
           <div className="font-mono text-[11px] uppercase tracking-[0.24em] text-muted">Taches prêtes</div>
           <div className="mt-3 text-3xl font-semibold text-ink">
             {data?.summary.readyTasks}/{data?.summary.totalTasks}
           </div>
         </div>
-        <div className="rounded-3xl border bg-panel/80 p-4 shadow-panel">
+        <div className="metric-tile rounded-3xl border border-white/10 p-4 shadow-panel">
           <div className="font-mono text-[11px] uppercase tracking-[0.24em] text-muted">Modeles verifies</div>
           <div className="mt-3 text-3xl font-semibold text-ink">
             {data?.summary.verifiedModels}/{data?.summary.totalModels}
           </div>
         </div>
-        <div className="rounded-3xl border bg-panel/80 p-4 shadow-panel">
+        <div className="metric-tile rounded-3xl border border-white/10 p-4 shadow-panel">
           <div className="font-mono text-[11px] uppercase tracking-[0.24em] text-muted">Vault backend</div>
           <div
             className={`mt-3 inline-flex rounded-full border px-3 py-1 text-sm ${
@@ -246,7 +246,7 @@ export function ModelKeyControl() {
 
       <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
         <div className="space-y-6">
-          <div className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+          <div className="runtime-card rounded-3xl border border-white/10 p-5 shadow-panel">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">Model Access</div>
@@ -265,7 +265,7 @@ export function ModelKeyControl() {
 
             <div className="mt-5 space-y-4">
               {data?.providers.map((provider) => (
-                <div key={provider.id} className="rounded-2xl border border-border/70 bg-background/25 p-4">
+                <div key={provider.id} className="rounded-2xl border border-border/70 bg-background/20 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-ink">{provider.label}</div>
@@ -337,7 +337,7 @@ export function ModelKeyControl() {
             ) : null}
           </div>
 
-          <div className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+          <div className="runtime-card rounded-3xl border border-white/10 p-5 shadow-panel">
             <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">Model Probes</div>
             <div className="mt-4 space-y-3">
               {data?.modelProbes.map((probe) => (
@@ -354,7 +354,7 @@ export function ModelKeyControl() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+          <div className="runtime-card rounded-3xl border border-white/10 p-5 shadow-panel">
             <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">Agent / task binding</div>
             <h2 className="mt-2 text-2xl font-semibold text-ink">Liaison explicite des taches</h2>
             <p className="mt-2 text-sm text-muted">
@@ -363,7 +363,7 @@ export function ModelKeyControl() {
 
             <div className="mt-5 space-y-5">
               {data?.agents.map((agent) => (
-                <div key={agent.id} className="rounded-2xl border border-border/70 bg-background/25 p-4">
+                <div key={agent.id} className="rounded-2xl border border-border/70 bg-background/20 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="text-lg font-semibold text-ink">{agent.label}</div>
@@ -436,7 +436,7 @@ export function ModelKeyControl() {
             </div>
           </div>
 
-          <div className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+          <div className="runtime-card rounded-3xl border border-white/10 p-5 shadow-panel">
             <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">Validation report</div>
             <div className="mt-4 space-y-3">
               {(data?.issues ?? []).map((issue, index) => (
@@ -464,7 +464,7 @@ export function ModelKeyControl() {
             </div>
           </div>
 
-          <div className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+          <div className="runtime-card rounded-3xl border border-white/10 p-5 shadow-panel">
             <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">Training hardening</div>
             <h2 className="mt-2 text-2xl font-semibold text-ink">Corpus defensif par agent</h2>
             <p className="mt-2 text-sm text-muted">
@@ -474,7 +474,7 @@ export function ModelKeyControl() {
 
             <div className="mt-5 space-y-4">
               {data?.trainingProfiles.map((profile) => (
-                <div key={profile.agentId} className="rounded-2xl border border-border/70 bg-background/25 p-4">
+                <div key={profile.agentId} className="rounded-2xl border border-border/70 bg-background/20 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-lg font-semibold text-ink">{profile.agentId}</div>
                     <span className="rounded-full border border-cyan-500/40 bg-cyan-500/10 px-3 py-1 font-mono text-xs text-cyan-100">
@@ -518,7 +518,7 @@ export function ModelKeyControl() {
             </div>
           </div>
 
-          <div className="rounded-3xl border bg-panel/80 p-5 shadow-panel">
+          <div className="runtime-card rounded-3xl border border-white/10 p-5 shadow-panel">
             <div className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300">Internal intelligence sources</div>
             <h2 className="mt-2 text-2xl font-semibold text-ink">Sources internes branchees</h2>
             <p className="mt-2 text-sm text-muted">
@@ -527,7 +527,7 @@ export function ModelKeyControl() {
             </p>
             <div className="mt-5 space-y-3">
               {data?.trainingSources.map((source) => (
-                <div key={source.id} className="rounded-2xl border border-border/70 bg-background/25 p-4">
+                <div key={source.id} className="rounded-2xl border border-border/70 bg-background/20 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="text-lg font-semibold text-ink">{source.label}</div>

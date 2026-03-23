@@ -1,8 +1,8 @@
 "use client";
 
-import Graph from "graphology";
-import Sigma from "sigma";
 import { useEffect, useRef, useState } from "react";
+
+type SigmaInstance = InstanceType<typeof import("sigma").default>;
 
 const NODE_COLORS = {
   User: "#378ADD",
@@ -32,8 +32,21 @@ type IdentityGraphProps = {
 
 export function IdentityGraph({ highlightId, onNodeSelect }: IdentityGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const sigmaRef = useRef<Sigma | null>(null);
-  const graphRef = useRef<Graph | null>(null);
+  const sigmaRef = useRef<SigmaInstance | null>(null);
+  const graphRef = useRef<{
+    order: number;
+    size: number;
+    addNode: (id: string, attributes: Record<string, unknown>) => void;
+    addEdgeWithKey: (
+      key: string,
+      source: string,
+      target: string,
+      attributes: Record<string, unknown>
+    ) => void;
+    forEachNode: (callback: (node: string) => void) => void;
+    getNodeAttribute: (node: string, key: string) => unknown;
+    setNodeAttribute: (node: string, key: string, value: unknown) => void;
+  } | null>(null);
   const [stats, setStats] = useState({ nodes: 0, edges: 0 });
 
   useEffect(() => {
@@ -41,6 +54,14 @@ export function IdentityGraph({ highlightId, onNodeSelect }: IdentityGraphProps)
 
     async function run() {
       if (!containerRef.current) {
+        return;
+      }
+
+      const [{ default: Graph }, { default: Sigma }] = await Promise.all([
+        import("graphology"),
+        import("sigma")
+      ]);
+      if (cancelled || !containerRef.current) {
         return;
       }
 

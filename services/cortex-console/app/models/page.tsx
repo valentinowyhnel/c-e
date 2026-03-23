@@ -15,6 +15,10 @@ export default function ModelsPage() {
             la politique de curation defensive qui evite de re-entrainer Cortex sur des attaques deja connues
             ou sur des contenus offensifs bruts.
           </p>
+          <p className="mt-3 text-sm text-cyan-100">
+            Pour la vue operationnelle dediee a l&apos;installation, la sante des agents et l&apos;onboarding Claude / GPT,
+            utilise la page <span className="font-semibold">Agents</span>.
+          </p>
         </div>
         <ModelKeyControl />
       </div>

@@ -60,6 +60,7 @@ body {
 .panel-sheen {
   position: relative;
   overflow: hidden;
+  isolation: isolate;
 }
 
 .panel-sheen::after {
@@ -68,6 +69,7 @@ body {
   inset: 0;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 18%, transparent 82%, rgba(76, 201, 240, 0.08));
   pointer-events: none;
+  z-index: 0;
 }
 
 .hero-frame {
@@ -81,9 +83,37 @@ body {
 }
 
 .signal-glow {
-  box-shadow: 0 0 0 1px rgba(76, 201, 240, 0.2), 0 0 24px var(--panel-glow);
+  box-shadow: 0 0 0 1px rgba(76, 201, 240, 0.18);
 }
 
 .danger-glow {
   box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2), 0 0 22px var(--danger-glow);
+}
+
+.agents-hero {
+  background:
+    linear-gradient(180deg, rgba(9, 21, 36, 0.96), rgba(6, 14, 26, 0.92));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 18px 42px rgba(0, 7, 18, 0.32),
+    0 0 0 1px rgba(29, 53, 87, 0.82);
+}
+
+.agents-rail {
+  background:
+    linear-gradient(180deg, rgba(5, 12, 22, 0.92), rgba(8, 19, 33, 0.82));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 10px 28px rgba(0, 7, 18, 0.22);
+}
+
+.metric-tile {
+  background: rgba(7, 17, 31, 0.52);
+}
+
+.runtime-card {
+  background: linear-gradient(180deg, rgba(7, 17, 31, 0.82), rgba(6, 14, 26, 0.72));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 10px 24px rgba(0, 7, 18, 0.2);
 }
