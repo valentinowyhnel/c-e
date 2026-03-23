@@ -1,530 +1,687 @@
-# Cortex BlackEvoPaper
+# Cortex Bible
 
-Document unique de reference Cortex, fusionnant:
+Document de reference unique de Cortex.
 
-- la vision executive
-- la vue engineering
-- l'etat operationnel actuel
+Ce fichier remplace les versions redondantes ou partielles du "BlackEvoPaper" et aligne la vision produit, l'architecture, les invariants de securite, les composants reels du depot, les nouvelles couches de Meta Decision et de reuse d'analyse, ainsi que l'etat actuel d'implementation.
 
 ---
 
-## Partie 1. Executive
+## 1. Identite de Cortex
 
-### Cortex en une phrase
+### Definition
 
-Cortex est un control plane Zero Trust natif pour identites, workloads, decisions et remediations, combine a un moteur agentique et a une couche de raisonnement LLM specialisee.
+Cortex est un control plane Zero Trust multi-agents pour:
 
-### Probleme adresse
+- l'observation securite
+- la decision assistee
+- la gouvernance de confiance
+- l'orchestration de remediations
+- l'analyse de graphes d'identite
+- la validation humaine des actions critiques
 
-Les architectures classiques separant IAM, supervision, detection, approbation et execution produisent:
+Le systeme combine:
 
-- trop de silos
-- trop de temps de reaction
-- trop de dependance a l'humain pour corriger vite
-- trop peu de liens entre privilege, risque, telemetrie et action
+- moteurs deterministes
+- pipelines ML
+- agents specialises
+- raisonnement LLM hors chemin critique
+- enforcement policy fail-closed
 
-Cortex unifie ces dimensions dans une meme boucle de controle.
+### Principe central
 
-### Proposition de valeur
+Le LLM ne decide jamais seul d'une action critique.
 
-Cortex apporte:
+Le LLM peut:
 
-- une gouvernance temps reel des identites et privileges
-- une chaine de decision liee au contexte et au risque
-- une capacite de remediation assistee puis approuvee
-- une observabilite operateur native
-- une architecture orientee pre-prod puis production Kubernetes
+- proposer
+- expliquer
+- classer
+- enrichir
+- comparer
+- resumer
 
-### Ce qui rend Cortex different
+Mais la permission finale reste sous controle de:
 
-#### 1. Le LLM n'est pas un gadget
+- Sentinel
+- Trust Engine
+- Meta Decision Agent
+- Policy Engine
+- Approval
+- Envoy ext_authz
 
-Dans Cortex, les modeles sont assignes a des disciplines:
+### Objectif produit
 
-- Phi-3 pour classer et router
-- Mistral pour menace et anomalie
-- Llama 3 pour investigation et graphes
-- CodeLlama pour scripts et generation structuree
-- Claude / GPT pour les decisions a forte consequence
+Cortex vise a unifier dans une meme boucle:
 
-#### 2. Le systeme immunitaire agit avant l'escalade
+1. detection
+2. correlation
+3. evaluation de confiance
+4. arbitrage inter-agents
+5. enforcement
+6. remediation
+7. audit
 
-Le Sentinel local:
+---
 
-- observe
-- corrigele
-- emet un score
-- propose SOT, quarantaine ou apoptose
+## 2. Invariants absolus
 
-#### 3. Le privilege devient un objet calculable
+Ces regles doivent etre considerees comme non negociables.
 
-Avec l'agent AD, BloodHound et le graphe:
+1. Gate FAILED = on reste dans la phase.
+2. Aucun LLM dans le chemin critique auth/authz.
+3. Sentinel valide chaque appel MCP.
+4. Dry-run obligatoire avant toute action irreversible.
+5. Fail-closed partout.
+6. Zero secret en variable d'environnement en cible produit.
+7. Audit event sur chaque decision de securite.
+8. Versions epinglees, jamais `latest`.
+9. Aucune action irreversible sur un signal faible unique.
+10. Aucune action irreversible sur un seul signal LLM.
+11. Les actions destructives sont bloquees si Approval, NATS ou Sentinel sont indisponibles.
+12. Le fast path doit rester rapide et ne pas etre penalise par la profondeur de raisonnement.
 
-- les chemins vers Tier 0 deviennent visibles
-- les changements sensibles sont pre-valides
-- les derives sont detectees dans le temps
+---
 
-#### 4. L'humain reste dans la boucle quand il le faut
+## 3. Vue d'ensemble d'architecture
 
-Les risques eleves:
+### Pipeline macro
 
-- passent par un agent decisionnel
-- sont expliques clairement
-- peuvent exiger approbation explicite
-- laissent une trace auditable
+```text
+Signals / Requests
+  -> Model Layer
+  -> Agents Layer
+  -> Analysis Fingerprint Engine
+  -> Case Memory Store
+  -> Analysis Reuse Orchestrator
+  -> Decision Memory Linker
+  -> Meta Decision Agent
+  -> Sentinel RL
+  -> Trust Engine
+  -> Policy Engine
+  -> Enforcement
+  -> Approval / Audit / Console
+```
 
-### Blocs du produit
+### Lecture du pipeline
 
-- `cortex-console`
-- `cortex-mcp-server`
-- `cortex-trust-engine`
-- `cortex-sentinel`
-- `cortex-agents`
-- `cortex-approval`
-- `cortex-audit`
+- `Model Layer`
+  - calcule des scores locaux ou de support
+- `Agents Layer`
+  - produit des analyses specialisees
+- `Analysis Fingerprint Engine`
+  - fabrique une empreinte stable du cas
+- `Case Memory Store`
+  - conserve les cas precedents, leur TTL, leur validation et leur reusability
+- `Analysis Reuse Orchestrator`
+  - decide `FULL_REUSE`, `PARTIAL_REUSE` ou `NO_REUSE`
+- `Decision Memory Linker`
+  - injecte le contexte memoire dans la decision
+- `Meta Decision Agent`
+  - arbitre entre agents, pondere, detecte les conflits, decide le deep analysis
+- `Sentinel RL`
+  - choisit l'action en posture conservative
+- `Trust Engine`
+  - maintient la confiance globale du systeme
+- `Policy Engine`
+  - applique les regles deterministes
+- `Enforcement`
+  - execute ou bloque
 
-### Cas d'usage cibles
+### Position de la couche Meta Decision
 
-- reduction du blast radius
-- controle des privileges AD
-- decisions de quarantaine expliquees
-- supervision de derive et de groupes sensibles
-- validation des changements a risque avant application
-- pilotage operateur via une console unifiee
+La couche Meta Decision est volontairement placee entre `Agents Layer` et `Sentinel RL`.
 
-### Mecanique business
+Elle ne remplace pas:
 
-Cortex remplace l'empilement de plusieurs categories d'outils par une boucle integree:
+- le Trust Engine global
+- OPA
+- Envoy ext_authz
+- les controles d'approval
 
-- detection
-- evaluation
-- decision
-- action
-- approbation
-- audit
+Elle ajoute une couche d'arbitrage "zero trust entre agents".
 
-### Etat actuel
+---
 
-Le systeme couvre deja:
+## 4. Couches fonctionnelles
 
-- MCP v2
-- agents AD / remediation / decision
-- trust engine
-- sentinel
-- console temps reel
-- BloodHound integre
-- gouvernance des modeles et des taches
+### A. Model Layer
 
-### Separation de maturite
+Responsabilites:
 
-Le document distingue maintenant explicitement trois niveaux:
+- classification
+- detection d'anomalie
+- scoring de nouveaute
+- scoring graphe
+- scoring temporel
+- support a la priorisation
 
-- `deja implemente`
-- `partiellement operationnel`
-- `conceptuel / roadmap`
+Caracteristiques:
 
-#### Deja implemente
+- utile pour le volume
+- jamais autorite finale
+- branche a la couche agents et a la Meta Decision
 
-- policy engine central avec decisions `allowed`, `denied`, `approval_required`, `prepare_only`, `blocked_due_to_degraded_mode`
-- state machine d'isolation partagee entre Sentinel, Trust et remediations
-- response graduee `monitor -> suspected -> observation -> restricted -> quarantined -> irreversible`
-- separation `prepare_*` / `execute_*` sur les reponses sensibles
-- SOT structure via token explicite, restrictions associees et lifecycle `issue / expire / revoke / impact`
-- blocage policy des actions irreversibles en mode degrade critique
-- blocage par maturite selon l'environnement
-- enrichissement audit/approval avec correlation, execution mode et maturity
-- contrats de messages versionnes pour les taches et resultats agents
-- curation defensive du contenu d'entrainement avec filtre de nouveaute et rejet des contenus offensifs bruts
+### B. Agents Layer
 
-#### Partiellement operationnel
+Responsabilites:
 
-- execution physique de quarantaine et de containment irreversible
-- persistence complete des enrichissements dans tous les backends de stockage existants
-- comite decisionnel multi-modeles avec fournisseurs externes reels
-- forensic preserve branche a de vrais collecteurs specialises
-- evaluation blast radius exhaustive quand le graphe est degrade
-- planification d'entrainement par agent avec filtrage des attaques deja couvertes
+- analyses de specialite
+- reasoning contextualise
+- production de `AGENT_MESSAGES`
+- participation au `deep analysis`
 
-#### Conceptuel / roadmap
+Agents reels et/ou integres:
 
-- containment irreversible production-ready
-- anti-tamper avance et anti-rootkit
-- orchestration de rollback multi-systeme
-- preuves forensiques et chaine de custody etendue
-
-### Garde-fous de surete
-
-- aucun LLM n'est une autorite finale d'execution
-- une action irreversible ne peut pas partir d'un signal faible unique
-- une action irreversible ne peut pas partir d'un signal LLM unique
-- les actions destructives sont bloquees si `approval`, `nats` ou `sentinel` sont indisponibles
-- `dry_run` force un chemin `prepare_only` hors lecture seule
-- les capacites `experimental` ou `stubbed` sont refusées en environnement `prod`
-- les operations sensibles exigent des scopes explicites comme `admin:write`
-- le corpus d'entrainement ne doit pas re-ingere des attaques deja connues ni des payloads offensifs weaponises
-
-### Gouvernance d'entrainement
-
-Le plan d'entrainement et d'enrichissement des agents est borne par trois regles:
-
-- la connaissance nouvelle doit etre differente du corpus deja couvert
-- les contenus offensifs bruts doivent etre rejetes
-- l'enrichissement de modele ne donne jamais une autorite d'execution
-
-Le pipeline defensif actuel:
-
-- prend des resumes d'attaques reelles avec techniques etiquetees
-- calcule une empreinte stable et une similarite de recouvrement
-- ignore le contenu deja couvert par le registre de connaissance
-- rejette les contenus offensifs bruts ou insuffisamment structures
-- route uniquement le contenu accepte vers les familles d'agents concernees
-
-Les sources internes actuellement branchees a cette curation sont:
-
-- `cortex-audit`
-- `cortex.ad.drifts`
-- resumes de chemins `BloodHound`
-- rapports SOC normalises
-
-Les familles d'agents actuellement ciblees sont:
-
+- `threat_hunter`
+- `trust`
+- `graph`
+- `anomaly`
 - `decision`
 - `remediation`
 - `ad`
 - `observer`
-- `soc`
 
-### Modes degrades explicites
+### C. Meta Decision Layer
 
-- `approval down` : aucune action irreversible, uniquement reversible ou prepare-only
-- `vault down` : rotation de secrets bloquee
-- `neo4j/bloodhound down` : analyse de blast radius partielle, execution autonome reduite
-- `external llm down` : enrichissement advisory degrade, jamais d'ouverture de droits supplementaires
-- `nats down` : pas d'execution distribuee fiable, restriction aux actions locales reversibles
-- `sentinel down` : blocage des reponses destructives autonomes
+Responsabilites:
 
-### Couverture de tests de safety
+- ne faire confiance a aucun agent par defaut
+- calculer la confiance agent par agent
+- mesurer les conflits inter-agents
+- exploiter la memoire d'analyse
+- limiter les recalculs inutiles
+- declencher une analyse profonde seulement quand necessaire
 
-Le repository contient des tests cibles sur les invariants de surete:
+### D. Sentinel RL
 
-- invalid transition rejected par la state machine
-- no irreversible action on weak evidence
-- policy blocks experimental in prod
-- degraded mode blocks destructive actions
-- prepare versus execute sur la remediation
-- cycle de vie SOT
-- MCP blocking and prepare-only semantics
-- audit enrichi avec correlation, maturity et degraded snapshot
+Responsabilites:
 
-### Ce que cela ouvre
+- transformer les signaux arbitres en action
+- rester conservatif en cas de doute
+- maintenir la boucle d'apprentissage locale
+- rester operationnel meme si le MDA est partiellement indisponible
 
-- pre-production securisee
-- industrialisation des workflows Zero Trust
-- pilotage multi-agents
-- extension vers production enterprise
+### E. Trust / Policy / Enforcement
+
+Responsabilites:
+
+- confiance globale entite/session/workload
+- politiques deterministes
+- ext_authz et garde-fous d'execution
+- validation d'approbation si le risque l'impose
 
 ---
 
-## Partie 2. Engineering
+## 5. Meta Decision System
 
-### Architecture logique
+La couche Meta Decision est maintenant une brique majeure de Cortex.
 
-```text
-Signals / Requests
-  -> Sentinel / Console / Orchestrator / Agents
-  -> NATS / HTTP
-  -> Trust Engine / MCP
-  -> Agents
-  -> Approval / Audit / Console
+### Objectifs
+
+- valider la fiabilite des analyses agents
+- reduire les erreurs de fusion naive
+- proteger Cortex contre ses propres erreurs
+- conserver le fast path
+- reutiliser les analyses precedentes quand c'est sur
+
+### Modules Python introduits
+
+Dans `cortex/meta_decision/`:
+
+- `meta_decision_agent.py`
+- `decision_trust_engine.py`
+- `case_complexity_engine.py`
+- `deep_analysis_protocol.py`
+- `agent_trust_registry.py`
+- `confidence_calibration.py`
+- `analysis_fingerprint_engine.py`
+- `case_memory_store.py`
+- `analysis_reuse_orchestrator.py`
+- `decision_memory_linker.py`
+
+Dans `cortex/learning/`:
+
+- `continuous_learning_engine.py`
+
+### Contrat de sortie MDA
+
+Le MDA produit une sortie structurante du type:
+
+```json
+{
+  "weighted_scores": {},
+  "agent_trust_scores": {},
+  "conflict_score": 0.0,
+  "selected_agents": [],
+  "deep_analysis_triggered": false,
+  "reasoning_summary": "",
+  "reuse_decision": "NO_REUSE"
+}
 ```
 
-### Services
+### Invariants MDA
 
-#### Core services
+- timeout strict
+- mode degrade explicite
+- auditabilite de chaque sortie
+- fast path preserve
+- deep analysis uniquement si seuils atteints
+- MDA jamais source unique d'autorisation
 
-- `cortex-mcp-server`
-- `cortex-trust-engine`
-- `cortex-orchestrator`
-- `cortex-gateway`
-- `cortex-auth`
+---
 
-#### Agents
+## 6. Decision Trust Engine
 
-- `cortex-agent-ad`
-- `cortex-agent-decision`
-- `cortex-agent-remediation`
-- `cortex-obs-agent`
-- `cortex-sentinel`
+### Role
 
-#### Supporting services
+Le `Decision Trust Engine` calcule la confiance d'un agent pour un cas donne.
 
-- `cortex-approval`
-- `cortex-audit`
-- `cortex-console`
-- `cortex-vllm`
-- `cortex-nats-bridge`
+Il est independant du `Trust Engine` global.
 
-#### Infra dependencies
+### Formule
 
-- NATS JetStream
-- Neo4j
-- BloodHound
-- Vault
-- SPIRE
-- Envoy
-- OPA
-- Postgres
-- Valkey
-- Falco
-- OTEL Collector
-- VictoriaMetrics
-- LLDAP
-- Keycloak
+```text
+agent_trust = f(
+  base_trust,
+  runtime_trust,
+  case_trust,
+  historical_accuracy,
+  uncertainty,
+  data_quality,
+  reasoning_quality
+)
+```
 
-### Communications
+### Entrees
 
-#### HTTP
+- profil agent
+- specialite
+- runtime trust
+- uncertainty
+- data quality
+- reasoning quality
+- historique de precision
 
-- `cortex-orchestrator -> cortex-mcp-server`
-- `cortex-orchestrator -> cortex-vllm`
-- `cortex-orchestrator -> cortex-sentinel`
-- `cortex-mcp-server -> vLLM endpoints`
-- `cortex-mcp-server -> Anthropic/OpenAI`
-- `cortex-mcp-server -> cortex-trust-engine`
-- `agents -> cortex-mcp-server`
-- `console -> api/*`
-- `console -> Vault`
+### Sorties
 
-#### NATS subjects
+- `agent_case_trust`
+- `trust_matrix`
 
-##### Agent work queues
+### Effet systeme
 
-- `cortex.agents.tasks.ad`
-- `cortex.agents.tasks.decision`
-- `cortex.agents.tasks.remediation`
-- `cortex.agents.tasks.ad.results`
-- `cortex.agents.tasks.decision.results`
-- `cortex.agents.tasks.remediation.results`
+Le DTE permet d'eviter la confiance aveugle entre agents:
 
-##### Trust and immunity
+- un agent historiquement bon mais actuellement incertain peut etre freine
+- un agent specialise peut etre privilegie sur son domaine
+- un agent derive peut etre degrade sans casser le systeme complet
 
+---
+
+## 7. Agent Trust Registry
+
+### Role
+
+Le registre de confiance stocke les profils d'agents:
+
+- `base_trust`
+- `runtime_trust`
+- `capabilities`
+- `specialties`
+- `historical_accuracy`
+- `drift_score`
+- `performance_history`
+
+### Utilisation
+
+Il est consomme par:
+
+- `DecisionTrustEngine`
+- `ContinuousLearningEngine`
+
+### But
+
+Construire une confiance dynamique, specialisee et corrigeable.
+
+---
+
+## 8. Confidence Calibration Layer
+
+### Role
+
+Corriger les scores de confiance apres calcul brut.
+
+### Objectif
+
+- reduire la sur-confiance
+- reduire la sous-confiance systematique
+- lisser certains extremes selon la qualite du raisonnement
+
+### Effet
+
+Le MDA s'appuie sur des scores calibres plutot que sur la sortie brute du DTE.
+
+---
+
+## 9. Case Complexity Engine
+
+### Role
+
+Classifier un cas en:
+
+- `FAST_PATH`
+- `GUARDED_PATH`
+- `DEEP_PATH`
+
+### Variables
+
+- `novelty_score`
+- `graph_depth`
+- `temporal_span`
+- `conflict_score`
+- `criticality`
+
+### But
+
+Eviter de sur-analyser les cas simples et reserver la profondeur de raisonnement aux cas:
+
+- conflictuels
+- nouveaux
+- critiques
+- diffus dans le graphe
+
+---
+
+## 10. Deep Analysis Protocol
+
+### Role
+
+Le protocole de deep analysis normalise les requetes aux agents quand le MDA estime qu'un cas le justifie.
+
+### Format attendu
+
+```json
+{
+  "explanation": "...",
+  "hypotheses": ["..."],
+  "counterfactuals": ["..."],
+  "feature_importance": {},
+  "confidence_interval": [0.0, 0.0]
+}
+```
+
+### Conditions de declenchement
+
+- conflit agent eleve
+- confiance agent faible
+- nouveaute elevee
+- asset critique
+
+### Contraintes
+
+- timeout strict
+- pas de deep analysis sur fast path stable
+- toutes les demandes restent auditables
+
+---
+
+## 11. Analysis Reuse Layer
+
+La couche de reuse est une extension majeure ajoutee a Cortex.
+
+Elle evite les recalculs inutiles et injecte de la memoire dans la boucle de decision.
+
+### 11.1 Analysis Fingerprint Engine
+
+Responsabilite:
+
+- generer une empreinte stable d'un cas a partir de:
+  - `event`
+  - `features`
+  - `graph_context`
+  - `trust_context`
+
+Sorties:
+
+- `fingerprint`
+- `version`
+- `material`
+
+### 11.2 Case Memory Store
+
+Responsabilite:
+
+- stocker des cas analyses avec:
+  - fingerprint
+  - scores
+  - agents utilises
+  - decision finale
+  - validation
+  - model_version
+  - policy_version
+  - reusability_score
+  - TTL
+  - invalidation
+
+### 11.3 Analysis Reuse Orchestrator
+
+Responsabilite:
+
+- decider:
+  - `FULL_REUSE`
+  - `PARTIAL_REUSE`
+  - `NO_REUSE`
+
+Critere de blocage absolu du reuse:
+
+- `zero_day_possible`
+- `admin_compromise`
+- `insider`
+- `crown_jewel`
+
+### 11.4 Decision Memory Linker
+
+Responsabilite:
+
+- connecter memoire et MDA
+- injecter un `memory_augmented_context`
+
+### 11.5 Regles de reuse
+
+Le reuse est permis seulement si:
+
+- la similarite est suffisante
+- la nouveaute est faible ou moderee
+- la criticite reste compatible
+- les versions de modeles/policies sont compatibles
+- aucun flag de blocage n'est present
+
+Le MDA garde toujours la decision finale.
+
+---
+
+## 12. Continuous Learning Engine
+
+### Role
+
+Le moteur d'apprentissage continu met a jour:
+
+- la performance agent
+- le trust agent
+- la derive agent
+- la memoire de cas
+- la boucle `Sentinel RL`
+
+### Fonctions clefs
+
+- `update_agent_performance()`
+- `adjust_agent_trust()`
+- `detect_agent_drift()`
+- `detect_drift()`
+- `remember_case()`
+- `retrain_models_if_needed()`
+- `retrain_models()`
+
+### But
+
+Faire progresser Cortex sans permettre qu'un apprentissage degrade devienne un chemin d'autorisation implicite.
+
+---
+
+## 13. Services reels du depot
+
+### Control plane et gateways
+
+- `services/cortex-auth`
+- `services/cortex-gateway`
+- `services/cortex-orchestrator`
+- `services/cortex-mcp-server`
+- `services/cortex-policy-engine`
+- `services/cortex-trust-engine`
+
+### Agents et decision
+
+- `services/cortex-agents`
+- `services/cortex-sentinel`
+
+### Console et observabilite
+
+- `services/cortex-console`
+- `services/cortex-audit`
+- `services/cortex-approval`
+- `services/cortex-graph`
+- `services/cortex-obs-agent`
+
+### Extensions ajoutees dans le depot
+
+- `services/cortex-admin-anomaly`
+- `services/cortex-campaign-memory`
+- `services/cortex-edge-inference`
+- `services/cortex-insider-decay`
+- `services/cortex-priority-engine`
+
+Ces briques etendent Cortex sur:
+
+- la memoire campagne
+- l'inference edge
+- l'analyse admin
+- la derive insider
+- la priorisation
+
+---
+
+## 14. Integrations de la couche Meta Decision dans les services
+
+### `services/cortex-agents`
+
+Ajouts effectifs:
+
+- export de `agent signals`
+- fichier `signal_export.py`
+- `DecisionAgent` capable de traiter `meta_decision` et `deep_analysis_request`
+
+### `services/cortex-sentinel`
+
+Ajouts effectifs:
+
+- bridge MDA local avant action
+- prise en compte de `conflict_score`
+- degradation conservative vers `issue_sot` selon le niveau de risque
+
+### `services/cortex-orchestrator`
+
+Ajouts effectifs:
+
+- contrat MDA partage
+- endpoint `/v1/meta-decision/assess`
+- enrichissement de `/v1/decision` avec payload `meta_decision`
+
+### `services/cortex-mcp-server`
+
+Ajouts effectifs:
+
+- propagation du champ `meta_decision`
+- endpoint `/mcp/meta-decision/deep-analysis`
+- relay des demandes de deep analysis aux agents
+
+### `services/cortex-gateway`
+
+Ajouts effectifs:
+
+- integration applicative du proto Go MDA
+- endpoint `POST /v1/meta-decision/events`
+
+### `shared/cortex-core`
+
+Ajouts effectifs:
+
+- contrats partages Pydantic pour `meta_decision`
+
+### `proto/meta_decision/v1`
+
+Ajouts effectifs:
+
+- schema proto
+- stubs Python generes
+- stub Go genere
+
+---
+
+## 15. MCP, LLM et delegation
+
+### Rappel de gouvernance
+
+Le MCP est le point de convergence entre:
+
+- modeles
+- tools
+- agents
+- garde-fous Sentinel
+
+### Ce qui est permis
+
+- classification
+- synthese
+- explication
+- aide a la decision
+- deep analysis
+
+### Ce qui est interdit
+
+- autorisation critique directe par LLM seul
+- execution irreversible sans dry-run
+- escalade de privilege decidee uniquement par une sortie LLM
+
+---
+
+## 16. NATS, messages et contrats
+
+### Flux NATS structurants
+
+- `cortex.agents.tasks.*`
+- `cortex.agents.tasks.*.results`
+- `cortex.agents.signals`
+- `cortex.meta_decision.events`
 - `cortex.trust.updates`
 - `cortex.trust.decisions`
-- `cortex.obs.stream`
-- `cortex.obs.sot.issued`
+- `cortex.obs.*`
 - `cortex.security.events`
+- `cortex.ad.*`
 
-##### Observability
+### Messages MDA standardises
 
-- `cortex.obs.actions`
-- `cortex.obs.health`
-- `cortex.obs.forecasts`
-- `cortex.obs.anomalies`
-- `cortex.obs.patterns`
+- `AgentSignal`
+- `DeepAnalysisRequest`
+- `TrustedAgentOutput`
+- `MetaDecisionAssessmentRequest`
+- `MetaDecisionEvent`
 
-##### AD domain stream
+---
 
-- `cortex.ad.drifts`
-- `cortex.ad.actions`
-- `cortex.ad.verifications`
-- `cortex.ad.snapshots`
-- `cortex.ad.kerberos.alerts`
-- `cortex.ad.bloodhound.paths`
+## 17. Console Cortex
 
-### MCP layer
+La console `services/cortex-console` est devenue un poste operateur plus proche d'une control room.
 
-#### Endpoints
-
-- `GET /health`
-- `GET /healthz`
-- `GET /readyz`
-- `GET /metrics`
-- `POST /mcp/complete`
-- `POST /mcp/tools/call`
-- `POST /mcp/debug/route`
-
-#### Pipeline
-
-- input filter
-- routing
-- batch support
-- multi-turn support
-- dry-run support
-- execution with fallback
-- output filter
-- metrics pipeline
-
-#### Routed models
-
-- `phi3-mini`
-- `mistral-7b`
-- `llama3-8b`
-- `codellama-13b`
-- `claude`
-- `openai-gpt5`
-- `openai-gpt45`
-
-#### Tool dispatch
-
-##### AD tools
-
-- `ad_validate_group_membership`
-- `ad_validate_service_account`
-- `ad_run_drift_scan`
-- `ad_restore_deleted`
-- `ad_get_object_acl`
-- `ad_get_deleted_objects`
-- `ad_dirsync_changes`
-
-##### BloodHound tools
-
-- `bh_get_attack_path`
-- `bh_get_blast_radius`
-- `bh_answer_privilege_question`
-- `bh_visualize_exposure`
-- `bh_get_tier0_assets`
-
-##### Decision tools
-
-- `decision_assess_privilege_change`
-- `decision_analyze_response`
-- `decision_explain_human`
-
-##### Response tools
-
-- `issue_sot`
-- `forensic_preserve`
-- `get_blast_radius`
-
-### Agent responsibilities
-
-#### ADAgent
-
-- LDAP client enrichi
-- BloodHound guard
-- Kerberos validator
-- action verifier
-- drift detector
-
-Implemented task handlers:
-
-- `add_to_group`
-- `create_service_account`
-- `run_drift_scan`
-- `restore_deleted`
-- `get_attack_path`
-- `get_blast_radius`
-- `answer_privilege_question`
-- `visualize_exposure`
-- `get_tier0_assets`
-- `validate_group_membership`
-- `validate_service_account`
-- `get_object_acl`
-- `get_deleted_objects`
-- `dirsync_changes`
-
-Stubbed / not yet implemented:
-
-- `create_user`
-- `disable_account`
-- `remove_from_group`
-- `reset_password`
-- `move_to_ou`
-
-#### DecisionAgent
-
-Committee workflow:
-
-1. `claude`
-2. `openai-gpt5`
-3. `openai-gpt45`
-4. Claude synthesis
-
-Supported tasks:
-
-- `assess_privilege_change`
-- `analyze_response_decision`
-- `explain_human_decision`
-
-#### RemediationAgent
-
-Supported tasks:
-
-- `issue_sot`
-- `quarantine`
-- `trigger_apoptosis`
-
-Dependencies:
-
-- MCP tools
-- BloodHound data for AD-like entities
-- decision committee for high-risk actions
-
-#### ObsAgent
-
-Loops:
-
-- telemetry
-- correlation
-- baseline
-- health
-- forecast
-- sentinel stream
-- ad drift scan
-
-#### Sentinel
-
-Collectors:
-
-- Falco
-- Auditd
-- psutil
-
-Actions:
-
-- `monitor`
-- `issue_sot`
-- `immediate_quarantine`
-- `trigger_apoptosis`
-
-### Trust flow
-
-1. Sentinel emits `cortex.trust.updates`
-2. Trust engine recomputes profile score
-3. Trust engine emits `cortex.trust.decisions`
-4. If score is low, trust engine emits remediation task or SOT
-
-### Approval and audit
-
-#### Approval
-
-- HTTP workflow
-- statuses:
-  - `pending`
-  - `approved`
-  - `rejected`
-  - `expired`
-
-#### Audit
-
-- immutable event log
-- SHA-256 event signature
-- filterable read APIs
-
-### Security mechanisms
-
-- Sentinel local scope gate in MCP
-- `admin:write` guard for sensitive tools
-- Vault sidecar secret injection
-- SPIRE workload identity
-- Envoy ext_authz
-- OPA policy enforcement
-- iptables local isolation in Sentinel
-- multi-source requirement before apoptosis
-
-### Console
-
-#### Pages
+### Pages majeures
 
 - `/`
 - `/models`
@@ -535,705 +692,196 @@ Actions:
 - `/decisions`
 - `/schemas`
 
-#### Features
+### Etat actuel
 
-- deep search
-- graph exploration
-- attack path reading
-- operator presets
-- local and server persistence
-- model governance UI
+- shell plus robuste
+- KPI cards plus lisibles
+- home plus "control room"
+- meilleure coherence visuelle
 
-### Helm packaging
+### Positionnement
 
-Charts present:
+La console n'est pas un simple frontend de dashboards.
+Elle est pensee comme poste de pilotage:
 
-- `helm/cortex-agents`
-- `helm/cortex-console`
-- `helm/cortex-enforcement`
-- `helm/cortex-identity`
-- `helm/cortex-infra`
-- `helm/cortex-mcp-server`
-- `helm/cortex-observability`
-- `helm/cortex-sentinel`
-- `helm/cortex-spire`
-- `helm/cortex-trust-engine`
-- `helm/cortex-vllm`
-
-### Known constraints
-
-- some AD write actions remain stubbed
-- Claude/OpenAI need live keys
-- Vault write mode in console needs `CORTEX_VAULT_TOKEN`
-- some BloodHound behavior may rely on API compatibility layer depending on environment
-
-### Formalisation d'etat
-
-#### A. Deja implemente
-
-- MCP v2 avec routage, tools, batch, dry-run, multi-turn
-- Trust Engine v2 avec profils et emission de SOT
-- Sentinel avec score 4D, collectors Falco/Auditd/psutil et isolement local
-- agents `ad`, `decision`, `remediation` branches dans le runner
-- console operateur avec recherche, graphes, attack paths, decisions, models
-- dispatch NATS des tools AD / BloodHound / decision
-- workflow approval et audit
-
-#### B. Partiellement operationnel
-
-- ADAgent CRUD complet
-  - plusieurs handlers existent
-  - plusieurs ecritures restent en stub
-- dependance BloodHound
-  - les integrations sont branchees
-  - selon l'environnement, l'implementation peut reposer sur une API compatible
+- analyse
+- validation
+- lecture des graphes
+- suivi des decisions
 - gouvernance des modeles
-  - la page et l'API existent
-  - l'ecriture Vault depend encore du token et du secret reellement montes
-- comite de decision externe
-  - le workflow existe
-  - la pleine puissance depend des cles Anthropic/OpenAI
-
-#### C. Conceptuel / roadmap
-
-- autonomie complete sur toutes les ecritures AD sensibles
-- elimination totale des fallbacks heuristiques sur certains chemins
-- mode production avec policies de rejet formalisees par service critique
-- preuves cryptographiques plus fortes sur certaines decisions inter-services
-
-### Risque de faux positifs
-
-#### Sources principales
-
-- Sentinel
-  - Falco trop sensible
-  - Auditd trop verbeux
-  - psutil detecte des outils legitimes interpretes comme suspects
-- AD drift
-  - deltas LDAP transitoires
-  - replication AD retardee
-  - baseline incomplete ou stale
-- BloodHound
-  - graphe incomplet
-  - exposition sur-estimee
-- LLM
-  - sur-classification d'un signal
-  - explication convaincante mais incorrecte
-
-#### Garde-fous deja en place
-
-- multi-source check avant apoptose
-- SOT avant action plus dure si les signaux sont insuffisants
-- verification post-action pour certaines operations AD
-- approval humaine pour risques 4-5
-- separation detection / decision / execution
-- OPA et scopes deterministes autour des ecritures
-
-#### Garde-fous encore insuffisants
-
-- calibration documentee par detecteur absente
-- budget de faux positifs par type de signal non formalise
-- politique de rollback standardisee encore incomplete pour tout l'AD
-- quorum de preuves pas encore impose a toutes les decisions fortes
-
-#### Politique recommandee
-
-- aucune action irreversible sur un seul signal LLM
-- aucune suppression ou apoptose sans:
-  - au moins deux sources techniques independantes
-  - validation deterministic policy
-  - approval humaine si risque >= 4
-- toute derive AD critique doit etre re-verifiee apres delai de replication
-
-### Modes degrades
-
-#### MCP degrade
-
-- Phi-3 indisponible
-  - fallback heuristique
-  - puis routage de secours vers modele plus generaliste
-- vLLM GPU indisponible
-  - bascule sur CPU si possible
-  - sinon Claude/OpenAI selon criticite
-- tous modeles externes indisponibles
-  - seules les decisions deterministes et tools locaux restent autorises
-  - les actions fortes passent en attente ou sont deny
-
-#### Trust degrade
-
-- NATS/JetStream indisponible
-  - publication core NATS quand possible
-  - perte de certaines garanties de stream durable
-- Trust Engine indisponible
-  - pas de recalcul fin
-  - les composants doivent conserver une posture conservative
-
-#### Sentinel degrade
-
-- Falco absent
-  - bascule Auditd + psutil
-- Auditd absent
-  - bascule psutil seul
-- isolement local non applicable
-  - escalade vers remediation / approval sans pretendue execution locale
-
-#### AD degrade
-
-- LDAP indisponible
-  - lecture / ecriture AD bloquees
-  - seules analyses contextuelles non destructives restent autorisees
-- BloodHound indisponible
-  - les pre-checks privilege path doivent passer en mode deny ou approval obligatoire
-- replication AD lente
-  - verification differee
-  - pas de declaration prematuree de succes definitif
-
-#### Console degrade
-
-- Vault indisponible
-  - lecture seule ou absence de cles
-- store operateur indisponible
-  - perte de persistance serveur
-  - maintien local-first si le navigateur a deja l'etat
-
-### Dependance aux modeles externes
-
-#### Risque
-
-Les modeles externes sont utiles pour:
-
-- synthese complexe
-- analyse decisionnelle
-- explication humaine
-
-Mais ils sont dangereux s'ils deviennent:
-
-- source unique de verite
-- precondition obligatoire a une decision critique
-- autorite d'execution sans garde-fou deterministe
-
-#### Regle stricte a appliquer
-
-- un modele externe ne doit jamais etre l'unique condition d'une action irreversible
-- un modele externe peut proposer, expliquer, prioriser
-- la permission finale doit rester contrainte par:
-  - policy
-  - scopes
-  - etat trust
-  - approval si criticite elevee
-
-#### Ce qui est acceptable aujourd'hui
-
-- Claude / GPT pour enrichir une decision
-- Claude / GPT pour produire un memo d'approbation
-- Claude / GPT pour arbitrer entre analyses
-
-#### Ce qui ne doit pas etre considere comme acquis
-
-- Claude / GPT comme seul moteur d'autorisation
-- Claude / GPT comme seul critere de quarantaine ou d'apoptose
-- Claude / GPT comme preuve suffisante de derive AD critique
 
 ---
 
-## Partie 3. Reference operationnelle actuelle
-
-### Snapshot de verification
-
-- Derniere verification code locale: `2026-03-19`
-  - `44` tests Python passes
-  - compilation Python des services critiques OK
-  - gate de maturite production executee et bloquante, comme attendu
-- Derniere verification runtime reussie sur cluster local: `2026-03-19`
-  - health checks verifies sur trust, mcp, obs-agent, audit, approval, console, auth, graph, orchestrator, gateway, vllm, bloodhound
-  - hardening HTTP interne verifie sur trust, approval, audit, obs-agent
-  - Sentinel v2 daemonset repare et valide sur le cluster local
-- Limite de la session actuelle:
-  - le contexte Kubernetes shell etait vide, mais la verification a ete restauree via `tmp-kind-kubeconfig.yaml`
-  - la verification reste locale Kind, pas cloud pre-prod
-
-### Etat de verification par composant
-
-#### Verifie aujourd'hui en code local
-
-- `cortex-policy-engine`
-- `cortex-trust-engine`
-- `cortex-mcp-server`
-- `cortex-agent-remediation`
-- `cortex-audit`
-- `cortex-approval`
-- `cortex-obs-agent`
-- `shared/cortex-core`
-
-#### Verifie precedemment en runtime local
-
-- `cortex-trust-engine`
-- `cortex-mcp-server`
-- `cortex-audit`
-- `cortex-approval`
-- `cortex-obs-agent`
-- `cortex-console`
-
-#### Verifie aujourd'hui en runtime local
-
-- `cortex-trust-engine`
-- `cortex-mcp-server`
-- `cortex-obs-agent`
-- `cortex-audit`
-- `cortex-approval`
-- `cortex-console`
-- `cortex-auth`
-- `cortex-graph`
-- `cortex-orchestrator`
-- `cortex-gateway`
-- `cortex-vllm`
-- `bloodhound-ce`
-
-#### Non reverifie en runtime dans cette session
-
-- `cortex-auth`
-- `cortex-gateway`
-- `cortex-graph`
-- `cortex-orchestrator`
-- `cortex-vllm`
-- `cortex-nats-bridge`
-- `cortex-sentinel`
-- infrastructure K8s associee
-
-#### Correction appliquee sur Sentinel
-
-- le `Deployment` legacy `cortex-sentinel` a ete retire
-- le service `cortex-sentinel` est maintenant aligne sur le `DaemonSet` v2
-- le runtime Sentinel v2 expose des endpoints de compatibilite:
-  - `GET /health`
-  - `POST /v1/validate-plan`
-- le `DaemonSet` v2 a ete reconcilie apres:
-  - suppression du demarrage `uv run` reseau-dependant
-  - correction du packaging Python runtime
-  - correction du bootstrap des imports partages
-  - correction d'un blocage Calico sur un noeud
-
-### Vision
-
-Cortex est un control plane Zero Trust pilote par politiques, scores de confiance, LLM specialises et agents operatoires. L'architecture combine:
-
-- controle d'identite et de confiance
-- routage LLM via MCP
-- surveillance immunitaire en temps reel
-- execution agentique orientee remediation et decision
-- audit immuable et approbation humaine
-- console operateur temps reel
-
-### Composants principaux
-
-#### Control plane et logique centrale
-
-- `cortex-mcp-server`
-  - point d'entree LLM et tools
-  - routage de modeles
-  - filtrage entree/sortie
-  - batch, dry-run, multi-turn
-  - dispatch de tools vers agents via NATS
-
-- `cortex-trust-engine`
-  - evaluation des scores de confiance
-  - profils de confiance par entite
-  - emission de decisions Trust
-  - emission de SOT et taches de remediation
-
-- `cortex-orchestrator`
-  - point d'orchestration de plans et de decisions
-  - delegation des analyses de decision au MCP
+## 18. Zero Trust et enforcement
 
-- `cortex-gateway`
-  - passerelle d'autorisation
-  - integree a Envoy ext_authz
+### Briques d'enforcement
 
-- `cortex-auth`
-  - emission et validation de CAP tokens
-  - prise en compte du trust score, scopes, session, device, DPoP
+- `Policy Engine (OPA)`
+- `Envoy ext_authz`
+- `Trust Engine`
+- `Sentinel`
+- `Approval`
+- `Audit`
 
-#### Agents
-
-- `cortex-agent-ad`
-  - operations et analyses Active Directory
-  - BloodHound pre-check
-  - validation Kerberos
-  - drift detection
-  - lecture ACL / recycle bin / DIRSYNC
-
-- `cortex-agent-remediation`
-  - emission de SOT
-  - preparation quarantaine
-  - preparation apoptosis
-  - enrichissement blast radius / privilege context / decision committee
-
-- `cortex-agent-decision`
-  - comite de decision Claude + GPT-5 + GPT-4.5
-  - synthese finale pour arbitrage
-  - explication humaine
-
-- `cortex-obs-agent`
-  - boucle telemetrie
-  - health monitoring
-  - correlation
-  - forecasts
-  - consommation des flux Sentinel
-  - planification des scans AD
-
-- `cortex-sentinel`
-  - systeme immunitaire local
-  - collecte Falco + Auditd + psutil
-  - score 4D
-  - machine a etats d'isolation
-  - emission d'events, trust updates, SOT et taches de remediation
-
-#### Services operatoires
-
-- `cortex-approval`
-  - workflow d'approbation humaine
-  - gestion des demandes pending / approved / rejected / expired
-
-- `cortex-audit`
-  - journal immuable signe
-  - lecture par filtres
-
-- `cortex-console`
-  - console operateur Next.js
-  - cockpit, recherche profonde, graphes, attack paths, schemas, machines, decisions
-  - persistance locale et serveur
-  - page `/models` pour gouvernance des modeles et des taches
+### Regle de posture
 
-#### Infrastructure et data plane
-
-- `cortex-vllm`
-  - execution locale/cloud des modeles open-weight
-
-- `cortex-nats-bridge`
-  - bridge HTTP vers NATS / JetStream
-
-- NATS JetStream
-  - bus de messages et de taches
-
-- Neo4j
-  - graphe d'identite, de relations et de risque
-
-- BloodHound CE / API compatible
-  - analyse de chemins de privilege
-  - tier 0
-  - blast radius
-  - exposition de ressources
-
-- Vault
-  - secrets et injection sidecar
-
-- SPIRE
-  - identites workload
-
-- Envoy + OPA
-  - enforcement fail-closed
+En cas de doute:
 
-- VictoriaMetrics + OTEL Collector
-  - observabilite et ingestion telemetrie
-
-- Falco
-  - detection runtime Kubernetes / Linux
-
-- LLDAP + Keycloak + Valkey + Postgres
-  - socle identite, federation, cache et stockage applicatif
-
-### Modeles et moteur LLM
-
-#### Modeles actuellement integres
-
-- `phi3-mini`
-  - routage
-  - classification
-  - validation de schema
-  - resume court
-
-- `mistral-7b`
-  - menaces
-  - anomalies
-  - correlation
-
-- `llama3-8b`
-  - investigation
-  - analyse de graphes
-  - blast radius
-  - remediation plan
-
-- `codellama-13b`
-  - generation de scripts
-  - code / Rego
-  - operations AD structurees
-
-- `claude`
-  - high-risk decision
-  - explication humaine
-
-- `openai-gpt5`
-  - complex reasoning
-  - decision analysis
-
-- `openai-gpt45`
-  - explication et synthese
-
-#### Routage MCP
-
-Le MCP route une requete selon:
-
-- fast path par mots-cles
-- classification Phi-3 si pas de fast path
-- fallback heuristique si besoin
-- fallback modele si indisponibilite
-- forcage explicite possible par `force_model`
-
-Le MCP expose:
-
-- `/mcp/complete`
-- `/mcp/tools/call`
-- `/mcp/debug/route`
-- `/health`
-- `/healthz`
-- `/readyz`
-- `/metrics`
-
-### Taches et outils relies
-
-#### Outils AD et BloodHound dispatches via MCP
-
-- `ad_validate_group_membership`
-- `ad_validate_service_account`
-- `ad_run_drift_scan`
-- `ad_restore_deleted`
-- `ad_get_object_acl`
-- `ad_get_deleted_objects`
-- `ad_dirsync_changes`
-- `bh_get_attack_path`
-- `bh_get_blast_radius`
-- `bh_answer_privilege_question`
-- `bh_visualize_exposure`
-- `bh_get_tier0_assets`
-
-#### Outils decisionnels
-
-- `decision_assess_privilege_change`
-- `decision_analyze_response`
-- `decision_explain_human`
-
-#### Outils de reponse supportes
-
-- `issue_sot`
-- `forensic_preserve`
-- `get_blast_radius`
-
-### Communications operationnelles
-
-#### HTTP / API internes
-
-- console -> APIs Next internes
-- orchestrator -> MCP
-- orchestrator -> vLLM / Sentinel
-- MCP -> vLLM
-- MCP -> Anthropic / OpenAI
-- MCP -> trust-engine
-- MCP -> sentinel
-- agents -> MCP
-- trust-engine -> clients HTTP
-- console -> MCP health logique via backend
-- console -> Vault pour gouvernance modeles si token disponible
-
-#### NATS / JetStream
-
-Les flux structurants du systeme passent par NATS. Exemples actuellement utilises:
-
-- `cortex.agents.tasks.ad`
-- `cortex.agents.tasks.decision`
-- `cortex.agents.tasks.remediation`
-- `cortex.agents.tasks.*.results`
-- `cortex.trust.updates`
-- `cortex.trust.decisions`
-- `cortex.obs.stream`
-- `cortex.obs.sot.issued`
-- `cortex.obs.anomalies`
-- `cortex.obs.actions`
-- `cortex.obs.health`
-- `cortex.obs.forecasts`
-- `cortex.security.events`
-
-Flux AD dedies:
-
-- `cortex.ad.drifts`
-- `cortex.ad.actions`
-- `cortex.ad.verifications`
-- `cortex.ad.snapshots`
-- `cortex.ad.kerberos.alerts`
-- `cortex.ad.bloodhound.paths`
-
-#### Runtime local / host
-
-- Sentinel applique aussi des mecanismes locaux:
-  - `iptables` pour isolation
-  - `psutil` pour processus et connexions
-  - `ausearch` / `auditctl`
-  - lecture des logs Falco
-
-### Mecanismes de securite
-
-- verification de scopes par Sentinel fallback dans MCP
-- `admin:write` requis pour certaines ecritures sensibles
-- audit signe par hash SHA-256
-- approbation obligatoire pour risques eleves
-- SOT pour observation coercitive
-- machine a etats d'isolation cote Sentinel
-- multi-source check avant apoptose
-- pre-check BloodHound avant changements privilegies AD
-- validation Kerberos avant comptes de service
-- ACL / recycle bin / DIRSYNC pour robustesse AD
-- Vault pour secrets
-- SPIRE pour identite workload
-- OPA + Envoy pour enforcement
-
-### Mecanismes de decision
-
-#### Trust
-
-Le trust-engine:
-
-- maintient un score par entite
-- recalcule sur evidences
-- publie les decisions
-- emet des demandes de SOT si le score passe sous seuil
-
-#### Immunitaire
-
-Le Sentinel:
-
-- collecte les signaux
-- calcule un score 4D
-- emet `monitor`, `issue_sot`, `immediate_quarantine`, `trigger_apoptosis`
-- fait de l'isolement local
-- notifie les agents de remediation
-
-#### Decision committee
-
-Le `DecisionAgent`:
-
-- consulte le MCP avec `force_model=claude`
-- consulte le MCP avec `force_model=openai-gpt5`
-- consulte le MCP avec `force_model=openai-gpt45`
-- synthese finale par Claude
-- produit une sortie lisible pour l'humain
-
-### Active Directory
-
-Le pipeline AD v2 actuellement branche:
-
-- BloodHound guard avant action sensible
-- validation Kerberos
-- verification post-action
-- scans de derive
-- ACL read
-- deleted objects read/restore
-- dirsync changes
-
-Usages AD enrichis:
-
-- groupe sensible
-- service account
-- GPO drift
-- stale / orphan objects
-- privilege path
-- blast radius
-- tier 0 exposure
-
-### Console operateur
-
-La console expose actuellement:
-
-- cockpit principal
-- recherche profonde
-- attack paths
-- graph
-- machines
-- decisions
-- schemas
-- modeles
-
-Capacites:
-
-- visualisation graphe identite et exposition
-- recherche profonde multi-criteres
-- favoris, tags, notes, incident rooms
-- comparaison de noeuds
-- timeline locale
-- presets et persistence locale / serveur
-- gouvernance des modeles par agent et par tache
-
-### Mecanique globale
-
-Sequence type:
-
-1. un signal arrive via telemetrie, Sentinel, console ou orchestrator
-2. Sentinel ou un composant publie sur NATS
-3. trust-engine ajuste le score si besoin
-4. obs-agent corrigele, observe et peut pousser une tache decisionnelle
-5. remediation ou decision agent consomme la tache
-6. l'agent appelle le MCP
-7. le MCP route vers le bon modele ou vers un tool agentique
-8. en cas de risque eleve, approval et audit sont engages
-9. la console expose l'etat temps reel
-
-### Etat reel a retenir
-
-- les agents reels branches dans le runner sont `ad`, `decision`, `remediation`
-- l'observabilite et le Sentinel utilisent NATS en flux temps reel
-- le MCP est le point de convergence LLM + tools
-- le Trust Engine pilote la logique de score et de SOT
-- la console est maintenant un poste operateur pre-prod avec persistence et gouvernance des modeles
-
-### Separation stricte de maturite
-
-#### Deja implemente
-
-- endpoints MCP, Trust, Approval, Audit, Console, Orchestrator
-- flux NATS structurants
-- score Sentinel et emission SOT / remediation
-- comite decisionnel branche au MCP
-- interfaces console de recherche, graph, attack paths, models
-
-#### Partiellement operationnel
-
-- ecritures AD completes
-- ecriture Vault depuis la console
-- execution pleine puissance Claude/OpenAI sans fallback local
-- standardisation du rollback sur tous les workflows AD
-
-#### Conceptuel / roadmap
-
-- couverture exhaustive de tous les cas AD et IAM sans stub
-- reduction formelle du risque de faux positifs par budgets mesurables
-- mode production sans dependance ambigue a des API externes pour les decisions critiques
-
-### Limites actuelles
-
-- certaines actions AD CRUD restent marquees `not yet implemented`
-- les appels Claude/OpenAI dependent des cles Vault effectives
-- la page `/models` est live mais l'ecriture Vault depend de `CORTEX_VAULT_TOKEN`
-- selon l'environnement, certains composants BloodHound peuvent etre exposes via une API compatible plutot que le produit CE complet
-
-### Fichiers de reference
-
-- `services/cortex-mcp-server/cortex_mcp_server/main.py`
-- `services/cortex-mcp-server/cortex_mcp_server/router.py`
-- `services/cortex-mcp-server/cortex_mcp_server/executor.py`
-- `services/cortex-trust-engine/cortex_trust_engine/main.py`
-- `services/cortex-sentinel/sentinel/engine.py`
-- `services/cortex-obs-agent/cortex_obs_agent/main.py`
+- on bloque
+- on prepare sans executer
+- on demande une approbation
+- on degrade vers une action reversible
+
+### Cas typiques
+
+- un conflit fort inter-agents peut faire tomber l'action vers `issue_sot`
+- un composant critique indisponible bloque le destructif
+- une confiance insuffisante force une verification supplementaire
+
+---
+
+## 19. Modes degrades
+
+### MDA degrade
+
+- le systeme conserve un fallback
+- la sortie peut passer en `degraded_mode`
+- le deep analysis peut etre court-circuite
+- Sentinel reste operationnel
+
+### Sentinel degrade
+
+- les actions destructives restent bloquees ou reduites
+- l'isolement local reste prioritaire si possible
+
+### MCP / modeles externes degrades
+
+- on garde uniquement les chemins deterministes et locaux
+- les actions fortes exigent approval ou blocage
+
+### BloodHound / graphe degrade
+
+- on reduit la confiance dans l'analyse d'impact
+- on peut forcer deny ou approval
+
+---
+
+## 20. Etat d'implementation reel
+
+### Deja implemente
+
+- couche `Meta Decision` dans `cortex/meta_decision/`
+- `ContinuousLearningEngine`
+- integration du MDA avant `Sentinel RL` dans `cortex/training_pipeline.py`
+- audit des sorties MDA
+- deep analysis standardise
+- `analysis fingerprint`, `case memory`, `reuse orchestrator`, `decision memory linker`
+- contrats MDA partages dans `shared/cortex-core`
+- proto `meta_decision`
+- stubs Python et Go generes
+- integrtions service-level dans agents, sentinel, orchestrator, MCP et gateway
+- tests cibles MDA, proto et services
+- mise a niveau visuelle du frontend principal
+
+### Partiellement operationnel
+
+- bridge MDA local dans Sentinel plutot que service MDA separe
+- certaines integrations runtime complet K8s restent a rejouer selon environnement
+- certaines actions AD sensibles ou ecritures restent encore bornees/stubbees
+
+### Conceptuel / roadmap
+
+- federation MDA multi-services complete
+- worker MDA dedie en production
+- strategie d'invalidation memoire distribuee
+- calibration statistique plus riche par detecteur
+
+---
+
+## 21. Verification et tests
+
+Suites qui ont ete executees pendant les integrations recentes:
+
+- `python -m pytest tests/test_meta_decision.py tests/test_cortex_reward.py`
+- `python -m pytest tests/test_meta_decision_proto_contract.py`
+- `python -m pytest tests/test_decision.py tests/test_signal_export.py tests/test_remediation.py`
+- `python -m pytest tests/test_engine.py tests/test_meta_decision.py`
+- `python -m pytest tests/test_main.py`
+- `go test ./internal/httpapi` sur `services/cortex-gateway`
+
+Smoke checks confirmes:
+
+- `run_training(episodes=1, num_events=6..8)` avec MDA actif
+- frontend Cortex construit et servi en mode standalone
+
+---
+
+## 22. Fichiers pivots a connaitre
+
+### Architecture et reference
+
+- `README.md`
+- `AGENTS.md`
+- `docs/CORTEX_V2_ARCHITECTURE.md`
+- `docs/META_DECISION_FLOW.md`
+- `docs/PHASE_STATUS.md`
+
+### Meta Decision local
+
+- `cortex/meta_decision/meta_decision_agent.py`
+- `cortex/meta_decision/decision_trust_engine.py`
+- `cortex/meta_decision/case_complexity_engine.py`
+- `cortex/meta_decision/deep_analysis_protocol.py`
+- `cortex/meta_decision/agent_trust_registry.py`
+- `cortex/meta_decision/confidence_calibration.py`
+- `cortex/meta_decision/analysis_fingerprint_engine.py`
+- `cortex/meta_decision/case_memory_store.py`
+- `cortex/meta_decision/analysis_reuse_orchestrator.py`
+- `cortex/meta_decision/decision_memory_linker.py`
+- `cortex/learning/continuous_learning_engine.py`
+- `cortex/training_pipeline.py`
+
+### Contrats partages
+
+- `shared/cortex-core/cortex_core/meta_decision.py`
+- `proto/meta_decision/v1/meta_decision.proto`
+- `proto/meta_decision/v1/meta_decision_pb2.py`
+- `proto/meta_decision/v1/meta_decision.pb.go`
+
+### Integrations services
+
 - `services/cortex-agents/cortex_agents/runner.py`
-- `services/cortex-agents/cortex_agents/agents/ad.py`
+- `services/cortex-agents/cortex_agents/signal_export.py`
 - `services/cortex-agents/cortex_agents/agents/decision.py`
-- `services/cortex-agents/cortex_agents/agents/remediation.py`
-- `services/cortex-console/lib/model-governance.ts`
-- `services/cortex-console/app/models/page.tsx`
+- `services/cortex-sentinel/sentinel/meta_decision.py`
+- `services/cortex-sentinel/sentinel/engine.py`
+- `services/cortex-orchestrator/cortex_orchestrator/main.py`
+- `services/cortex-mcp-server/cortex_mcp_server/main.py`
+- `services/cortex-mcp-server/cortex_mcp_server/executor.py`
+- `services/cortex-gateway/internal/httpapi/handler.go`
+
+### Frontend
+
+- `services/cortex-console/app/page.tsx`
+- `services/cortex-console/components/console-shell.tsx`
+- `services/cortex-console/components/kpi-card.tsx`
+- `services/cortex-console/app/globals.css`
+
+---
+
+## 23. Doctrine finale
+
+Cortex doit etre compris comme un systeme immunitaire de decision securite.
+
+Sa doctrine est simple:
+
+- ne jamais faire confiance par defaut
+- confronter les analyses
+- garder des preuves
+- reutiliser intelligemment ce qui est deja appris
+- proteger le fast path
+- faire intervenir l'humain quand le risque l'exige
+- rester deterministe au moment critique
+
+La couche Meta Decision et la couche Analysis Reuse ne changent pas cette doctrine.
+Elles la rendent plus robuste, plus rapide sur les cas repetitifs, et plus difficile a tromper.
