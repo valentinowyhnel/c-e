@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover - optional in unit-test environments
             return logging.getLogger("cortex-trust-engine")
 
     structlog = _StructlogFallback()
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 
 try:
     import nats
@@ -66,6 +66,10 @@ def require_internal_api(request: Request) -> None:
         return
     if request.headers.get("x-cortex-internal-token", "") != expected:
         raise HTTPException(status_code=403, detail="internal_api_auth_required")
+
+
+def edge_inference_enabled() -> bool:
+    return os.getenv("EDGE_INFERENCE_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
 
 
 async def _load_or_create_profile(entity_id: str, entity_type: str) -> dict[str, Any]:
@@ -124,7 +128,11 @@ async def _subscribe(subject: str, cb, durable: str) -> None:
 
 async def _internal_evaluate(body: dict[str, Any]) -> dict[str, Any]:
     entity_id = body["entity_id"]
-    evidences = [SecurityEvidence.model_validate(ev) for ev in body.get("evidences", [])]
+    evidences = [
+        SecurityEvidence.model_validate(ev)
+        for ev in body.get("evidences", [])
+        if edge_inference_enabled() or ev.get("source") != "edge_inference"
+    ]
     profile = await _load_or_create_profile(entity_id, body.get("entity_type", "machine"))
     new_score, distinct_sources, strong_signals = score_evidences(
         base_score=float(profile["score"]),
@@ -185,6 +193,9 @@ async def _internal_evaluate(body: dict[str, Any]) -> dict[str, Any]:
         "score_after": profile["score"],
         "threat_level": profile["threat_level"],
         "response_eligibility": profile["response_eligibility"],
+        "evidence_count": len(evidences),
+        "distinct_sources": distinct_sources,
+        "strong_signals": strong_signals,
     }
 
 
@@ -228,8 +239,44 @@ app = FastAPI(title="Cortex Trust Engine", lifespan=lifespan)
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "cortex-trust-engine"}
+async def health() -> dict[str, Any]:
+    return {"status": "ok", "service": "cortex-trust-engine", "edge_inference_enabled": edge_inference_enabled()}
+
+
+@app.get("/health/live")
+async def health_live() -> dict[str, str]:
+    return {"status": "live", "service": "cortex-trust-engine"}
+
+
+@app.get("/health/startup")
+async def health_startup() -> dict[str, str]:
+    return {"status": "started", "service": "cortex-trust-engine"}
+
+
+@app.get("/health/ready")
+async def health_ready() -> dict[str, str]:
+    return {"status": "ready", "service": "cortex-trust-engine"}
+
+
+@app.get("/metrics")
+async def metrics() -> Response:
+    body = "\n".join(
+        [
+            "# HELP cortex_trust_engine_profiles Number of cached trust profiles.",
+            "# TYPE cortex_trust_engine_profiles gauge",
+            f"cortex_trust_engine_profiles {len(profiles)}",
+            "# HELP cortex_trust_engine_sot_records Number of cached SOT records.",
+            "# TYPE cortex_trust_engine_sot_records gauge",
+            f"cortex_trust_engine_sot_records {len(sot_records)}",
+            "",
+        ]
+    )
+    return Response(content=body, media_type="text/plain; version=0.0.4")
+
+
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {"service": "cortex-trust-engine", "version": "0.1.0"}
 
 
 @app.post("/v1/evaluate")
@@ -258,7 +305,16 @@ async def evaluate_v2(request: Request) -> TrustEvaluateV2Response:
         decision=make_decision(int(result["score_after"])),
         retained_evidence_count=len(body.get("evidences", [])),
         degraded=False,
-        rationale=["Trust evaluation completed from structured evidences."],
+        rationale=[
+            "Trust evaluation completed from structured evidences.",
+            f"distinct_sources={result['distinct_sources']}",
+            f"strong_signals={result['strong_signals']}",
+        ]
+        + [
+            f"edge_risk_signal:{evidence.get('signal_type')}"
+            for evidence in body.get("evidences", [])
+            if evidence.get("source") == "edge_inference"
+        ],
     )
 
 

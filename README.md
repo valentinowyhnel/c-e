@@ -71,6 +71,7 @@ Documentation associee:
 - `docs/UBUNTU_VM_LEAN_INSTALL.md`
 - `docs/GITHUB_EPHEMERAL_RUNNER.md`
 - `docs/CORTEX_SIZING_REFERENCE.md`
+- `docs/META_DECISION_FLOW.md`
 
 ## References
 

@@ -21,17 +21,21 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen xl:grid xl:grid-cols-[16rem_minmax(0,1fr)]">
+    <div className="min-h-screen xl:grid xl:grid-cols-[17rem_minmax(0,1fr)]">
       <aside className="border-b border-border/70 bg-[#06101c]/95 backdrop-blur xl:min-h-screen xl:border-b-0 xl:border-r">
         <div className="sticky top-0 flex flex-col gap-6 p-4 xl:p-6">
-          <div className="rounded-2xl border border-border/70 bg-panel/80 p-4 shadow-panel">
+          <div className="panel-sheen rounded-[1.6rem] border border-border/70 bg-panel/85 p-5 shadow-panel">
             <div className="font-mono text-[11px] uppercase tracking-[0.35em] text-cyan-300">
-              Cortex Console
+              Cortex Control
             </div>
-            <h1 className="mt-3 text-2xl font-semibold text-ink">Control Surface</h1>
-            <p className="mt-2 text-sm text-muted">
-              Vue operateur pour graphes, machines, schemas et decisions.
+            <h1 className="mt-3 text-[1.85rem] font-semibold leading-tight text-ink">Decision Surface</h1>
+            <p className="mt-3 text-sm leading-6 text-muted">
+              Correlation, trust, approvals et signal machine dans une seule surface operateur.
             </p>
+            <div className="mt-4 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              posture live
+            </div>
           </div>
 
           <nav className="grid gap-2">
@@ -42,9 +46,9 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "rounded-2xl border px-4 py-3 transition",
+                    "rounded-2xl border px-4 py-3 transition duration-200",
                     active
-                      ? "border-cyan-400/60 bg-cyan-400/10 shadow-panel"
+                      ? "signal-glow border-cyan-400/60 bg-cyan-400/10 shadow-panel"
                       : "border-border/70 bg-panel/60 hover:border-cyan-500/40 hover:bg-panel/90"
                   )}
                 >
@@ -57,9 +61,9 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <div className="rounded-2xl border border-border/70 bg-panel/70 p-4">
+          <div className="panel-sheen rounded-2xl border border-border/70 bg-panel/70 p-4">
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+              <span className="signal-glow h-2.5 w-2.5 rounded-full bg-green-500" />
               <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted">
                 Real-time polling
               </span>
@@ -76,10 +80,10 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-muted">
-                Zero Trust Operations
+                Zero Trust Command
               </div>
               <div className="mt-1 text-sm text-ink">
-                Interface de lecture, correlation et action sur les composants Cortex.
+                Interface operateur pour corriger, comprendre et contenir sans perdre la trace.
               </div>
             </div>
             <div className="rounded-full border border-border/70 bg-panel/70 px-3 py-1 font-mono text-xs text-muted">

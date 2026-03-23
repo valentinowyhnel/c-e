@@ -6,9 +6,24 @@ stages:
   - post-deploy-prod
   - promote
 
+trivy-fs-scan:
+  stage: supply-chain
+  image: aquasec/trivy:0.57.1
+  script:
+    - mkdir -p artifacts/security
+    - trivy fs --scanners vuln --format json --output artifacts/security/trivy.json .
+  artifacts:
+    when: always
+    paths:
+      - artifacts/security/trivy.json
+
 generate-sbom:
   stage: supply-chain
-  image: anchore/syft:v1.18.1
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash curl tar
+    - curl -fsSL https://github.com/anchore/syft/releases/download/v1.18.1/syft_1.18.1_linux_amd64.tar.gz -o /tmp/syft.tar.gz
+    - tar -xzf /tmp/syft.tar.gz -C /usr/local/bin syft
   script:
     - sh scripts/ci/generate_sbom.sh
   artifacts:
@@ -18,7 +33,11 @@ generate-sbom:
 
 sign-artifacts:
   stage: supply-chain
-  image: cgr.dev/chainguard/cosign:2.4.1
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash curl
+    - curl -fsSL https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64 -o /usr/local/bin/cosign
+    - chmod +x /usr/local/bin/cosign
   script:
     - sh scripts/ci/sign_artifacts.sh
   artifacts:
@@ -28,9 +47,13 @@ sign-artifacts:
 
 verify-signed-artifacts:
   stage: supply-chain
-  image: python:3.12-slim
+  image: python:3.12-alpine
+  before_script:
+    - apk add --no-cache curl
+    - curl -fsSL https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64 -o /usr/local/bin/cosign
+    - chmod +x /usr/local/bin/cosign
   script:
-    - python scripts/ci/verify_signed_artifacts.py
+    - python3 scripts/ci/verify_signed_artifacts.py
   artifacts:
     when: always
     paths:
@@ -39,6 +62,8 @@ verify-signed-artifacts:
 scan-critical-vulnerabilities:
   stage: supply-chain
   image: python:3.12-slim
+  needs:
+    - trivy-fs-scan
   script:
     - python scripts/ci/check_vulnerabilities.py
   artifacts:
@@ -82,7 +107,7 @@ check-canary-health:
   stage: post-deploy-prod
   image: python:3.12-slim
   script:
-    - bash scripts/ci/check_canary_health.sh
+    - sh scripts/ci/check_canary_health.sh
   artifacts:
     when: always
     paths:

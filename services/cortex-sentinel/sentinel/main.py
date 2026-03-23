@@ -10,7 +10,17 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 import nats
-import structlog
+try:
+    import structlog
+except ImportError:
+    import logging
+
+    class _StructlogShim:
+        @staticmethod
+        def get_logger():
+            return logging.getLogger("cortex-sentinel")
+
+    structlog = _StructlogShim()
 
 from .engine import CortexSentinelEngine
 
@@ -21,7 +31,10 @@ JETSTREAM_SUBJECTS = [
     "cortex.security.events",
     "cortex.obs.sot.issued",
     "cortex.sentinel.commands",
+    "cortex.agents.signals",
     "cortex.agents.tasks.remediation",
+    "cortex.agents.tasks.decision",
+    "cortex.meta_decision.events",
 ]
 
 HIGH_RISK_ACTIONS = {
@@ -139,7 +152,23 @@ async def main() -> None:
             if hasattr(msg, "nak"):
                 await msg.nak()
 
+    async def on_agent_signal(msg) -> None:
+        try:
+            payload = json.loads(msg.data)
+            if payload.get("entity_id") != entity_id:
+                if hasattr(msg, "ack"):
+                    await msg.ack()
+                return
+            engine.meta_decision.ingest_signal(payload)
+            if hasattr(msg, "ack"):
+                await msg.ack()
+        except Exception as exc:
+            log.error("agent_signal.error", error=str(exc))
+            if hasattr(msg, "nak"):
+                await msg.nak()
+
     await _subscribe(nc, js, "cortex.sentinel.commands", on_command, f"sentinel-{entity_id}")
+    await _subscribe(nc, js, "cortex.agents.signals", on_agent_signal, f"sentinel-agent-signals-{entity_id}")
     loop = asyncio.get_running_loop()
 
     def _stop(*_: object) -> None:

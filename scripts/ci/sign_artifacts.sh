@@ -5,7 +5,7 @@ set -eu
 require_cmd cosign
 
 mkdir -p "${ARTIFACT_DIR}/signatures"
-ensure_image_inventory
+require_nonempty_file "${ARTIFACT_DIR}/images/images.txt"
 while IFS= read -r image; do
   [ -n "${image}" ] || continue
   cosign sign --yes "${image}"

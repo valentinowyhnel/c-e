@@ -1,4 +1,4 @@
-.PHONY: dev setup-env cluster vault spire identity enforcement agents console observability lint test gate gate-api gate-final build clean status ci-preflight ci-validate ci-unit ci-security ci-policy ci-build ci-package ci-integration ci-ephemeral-env ci-e2e ci-resilience ci-ml-guard ci-supply-chain ci-deploy-staging ci-post-deploy-staging ci-deploy-prod-canary ci-post-deploy-prod ci-promote
+.PHONY: dev setup-env cluster vault spire identity enforcement agents console observability lint test gate gate-api gate-final build clean status proto-meta-decision proto-meta-decision-go ci-preflight ci-validate ci-unit ci-security ci-policy ci-build ci-package ci-integration ci-ephemeral-env ci-e2e ci-resilience ci-ml-guard ci-supply-chain ci-deploy-staging ci-post-deploy-staging ci-deploy-prod-canary ci-post-deploy-prod ci-promote
 
 dev: cluster vault spire
 	@echo "Environnement Cortex pret. Lance 'make status' pour verifier."
@@ -41,7 +41,8 @@ lint:
 	@for d in services/cortex-trust-engine services/cortex-mcp-server \
 	           services/cortex-orchestrator services/cortex-agents \
 	           services/cortex-sentinel services/cortex-vllm \
-	           services/cortex-approval; do \
+	           services/cortex-approval services/cortex-edge-inference \
+	           services/cortex-campaign-memory services/cortex-priority-engine; do \
 	  [ -f "$$d/pyproject.toml" ] && (cd $$d && ruff check . && mypy .) || true; \
 	done
 	@echo "=== Lint Helm charts ==="
@@ -68,6 +69,12 @@ build:
 	@for d in services/cortex-*/; do \
 	  [ -f "$$d/Dockerfile" ] && docker build -t cortex/$$(basename $$d):dev "$$d" || true; \
 	done
+
+proto-meta-decision:
+	@python scripts/generate_meta_decision_proto_stubs.py
+
+proto-meta-decision-go:
+	@python scripts/generate_meta_decision_go_stubs.py
 
 ci-preflight:
 	@bash scripts/ci/check_no_plaintext_secrets.sh

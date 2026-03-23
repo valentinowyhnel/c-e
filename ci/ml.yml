@@ -2,6 +2,19 @@ stages:
   - ml-guard
   - package
 
+prepare-model-metrics:
+  stage: ml-guard
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache bash
+  script:
+    - sh scripts/ci/prepare_model_metrics.sh
+  artifacts:
+    when: always
+    paths:
+      - artifacts/models/metrics.json
+      - artifacts/models/model-manifest.schema.json
+
 check-model-integrity:
   stage: ml-guard
   image: python:3.12-slim
@@ -15,6 +28,8 @@ check-model-integrity:
 ml-fpr-gate:
   stage: ml-guard
   image: python:3.12-slim
+  needs:
+    - prepare-model-metrics
   script:
     - python scripts/ci/check_ml_metrics.py
   artifacts:
@@ -33,4 +48,3 @@ ml-package:
     when: always
     paths:
       - artifacts/models/
-

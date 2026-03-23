@@ -1,0 +1,14 @@
+replicaCount: 1
+
+image:
+  repository: cortex/cortex-campaign-memory
+  tag: dev
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

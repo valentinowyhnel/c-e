@@ -66,3 +66,9 @@ ensure_image_inventory() {
     printf '%s/%s:%s\n' "${CI_REGISTRY_IMAGE:-registry.example.com/cortex}" "${name}" "${CI_COMMIT_SHA:-dev}" >>"${images_file}"
   done
 }
+
+require_nonempty_file() {
+  target="$1"
+  [ -f "${target}" ] || fail "missing file: ${target}"
+  [ -s "${target}" ] || fail "empty file: ${target}"
+}

@@ -16,6 +16,32 @@ function Require-Command($name) {
   }
 }
 
+function Get-FreeTcpPort([int]$PreferredPort) {
+  $port = $PreferredPort
+  while ($true) {
+    $inUse = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
+    if (-not $inUse) {
+      return $port
+    }
+    $port++
+  }
+}
+
+function Wait-HttpOk([string]$Url, [int]$TimeoutSeconds = 20) {
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  while ((Get-Date) -lt $deadline) {
+    try {
+      $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 5
+      if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+        return $response.StatusCode
+      }
+    } catch {
+      Start-Sleep -Seconds 1
+    }
+  }
+  throw "HTTP endpoint not reachable in time: $Url"
+}
+
 Require-Command python
 Require-Command kubectl
 
@@ -28,6 +54,9 @@ $resolvedPayload = Resolve-Path (Join-Path $repoRoot $PayloadPath)
 if ([string]::IsNullOrWhiteSpace($Secret)) {
   Write-Warning "Aucun secret Colab fourni. Le test de push sera ignore."
 }
+
+$ColabPort = Get-FreeTcpPort $ColabPort
+$OrchestratorPort = Get-FreeTcpPort $OrchestratorPort
 
 $token = [guid]::NewGuid().ToString("N")
 $backendArgs = @(
@@ -52,6 +81,7 @@ Start-Sleep -Seconds 8
 
 $colabUrl = "http://localhost:$ColabPort/?token=$token"
 $orchestratorUrl = "http://127.0.0.1:$OrchestratorPort/v1/training/colab/ingest"
+$orchestratorHealthUrl = "http://127.0.0.1:$OrchestratorPort/health"
 
 Write-Host ""
 Write-Host "Colab backend URL:"
@@ -65,10 +95,17 @@ Write-Host "Port-forward PID: $($portForward.Id)"
 Write-Host ""
 
 try {
-  $backendCheck = Invoke-WebRequest -Uri $colabUrl -UseBasicParsing -TimeoutSec 10
-  Write-Host "Colab backend HTTP: $($backendCheck.StatusCode)"
+  $backendCode = Wait-HttpOk $colabUrl 20
+  Write-Host "Colab backend HTTP: $backendCode"
 } catch {
   Write-Warning "Colab backend non joignable pour l'instant."
+}
+
+try {
+  $orchCode = Wait-HttpOk $orchestratorHealthUrl 20
+  Write-Host "Orchestrator HTTP: $orchCode"
+} catch {
+  Write-Warning "Orchestrator non joignable sur le port-forward."
 }
 
 if ($PushTestPayload -and -not [string]::IsNullOrWhiteSpace($Secret)) {

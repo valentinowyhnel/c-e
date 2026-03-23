@@ -39,3 +39,8 @@
     - legacy `Deployment/cortex-sentinel` removed
     - `DaemonSet/cortex-sentinel` rolled out successfully
     - compatibility endpoints `/health` and `/v1/validate-plan` validated on Sentinel v2
+- 2026-03-22:
+  - Meta Decision flow integrated across `cortex`, `cortex-agents`, `cortex-sentinel`, `cortex-orchestrator` and `cortex-mcp-server`
+  - shared contracts added in `shared/cortex-core/cortex_core/meta_decision.py`
+  - proto contract added in `proto/meta_decision/v1/meta_decision.proto`
+  - targeted local suites passed for training pipeline, agents, sentinel, orchestrator and MCP server

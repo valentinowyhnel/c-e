@@ -37,6 +37,8 @@ class PolicyEngine:
         rationale: list[str] = []
         blocked_by: list[str] = []
         capability = CAPABILITY_REGISTRY[capability_name]
+        admin_compromise_score = float(envelope.derived_signals.get("admin_compromise_score", 0.0))
+        insider_decay_score = float(envelope.derived_signals.get("insider_trust_decay", 0.0))
 
         if envelope.dry_run and envelope.action_class != ActionClass.READ_ONLY:
             rationale.append("Dry-run enforces prepare-only path.")
@@ -75,6 +77,33 @@ class PolicyEngine:
                 decision=ExecutionDecision.DENIED,
                 rationale=["Caller lacks admin:write scope."],
                 blocked_by=blocked_by,
+            )
+
+        if admin_compromise_score >= 85.0 and envelope.action_class in {
+            ActionClass.EXECUTE_WITH_APPROVAL,
+            ActionClass.IRREVERSIBLE,
+        }:
+            return PolicyDecision(
+                decision=ExecutionDecision.APPROVAL_REQUIRED,
+                rationale=[
+                    "Admin compromise suspicion exceeds escalation threshold.",
+                    "Step-up approval required before critical admin execution.",
+                ],
+                approval_required=True,
+                forensic_required=True,
+                blocked_by=["admin_compromise_suspected"],
+            )
+
+        if insider_decay_score >= 65.0 and envelope.criticality in {"high", "critical"}:
+            return PolicyDecision(
+                decision=ExecutionDecision.APPROVAL_REQUIRED,
+                rationale=[
+                    "Insider trust decay exceeds threshold for sensitive asset access.",
+                    "Human approval required while trust recovers or is disproved.",
+                ],
+                approval_required=True,
+                forensic_required=guardrails.forensic_required,
+                blocked_by=["insider_trust_decay"],
             )
 
         if envelope.action == "execute_secret_rotation" and not secret_rotation_allowed(envelope.dependencies):

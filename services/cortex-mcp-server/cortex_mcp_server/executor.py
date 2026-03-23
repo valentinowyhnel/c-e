@@ -24,6 +24,7 @@ from cortex_core.contracts import (  # noqa: E402
 )
 from cortex_core.messages import AgentTask  # noqa: E402
 from cortex_core.maturity import CAPABILITY_REGISTRY  # noqa: E402
+from cortex_core.meta_decision import MetaDecisionEvent  # noqa: E402
 from cortex_policy_engine.engine import PolicyEngine  # noqa: E402
 
 
@@ -472,6 +473,13 @@ class MCPExecutor:
         task_id = str(params.get("task_id") or f"{tool}-{uuid.uuid4().hex[:12]}")
         subject = spec["subject"]
         result_subject = f"{subject}.results"
+        meta_decision = params.get("meta_decision")
+        if isinstance(meta_decision, MetaDecisionEvent):
+            meta_decision_payload = meta_decision.model_dump()
+        elif isinstance(meta_decision, dict):
+            meta_decision_payload = meta_decision
+        else:
+            meta_decision_payload = None
         payload = {
             **AgentTask(
                 task_id=task_id,
@@ -487,6 +495,8 @@ class MCPExecutor:
             ).model_dump(),
             **params,
         }
+        if meta_decision_payload is not None:
+            payload["meta_decision"] = meta_decision_payload
         subscription = await nc.subscribe(result_subject)
         try:
             await nc.publish(subject, json.dumps(payload).encode())

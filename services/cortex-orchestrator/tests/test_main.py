@@ -257,3 +257,108 @@ def test_colab_ingest_blocks_unreviewed_candidate(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["accepted"] is False
     assert response.json()["reason"] == "candidate_requires_human_review"
+
+
+def test_meta_decision_assess_returns_trusted_output(monkeypatch) -> None:
+    client = TestClient(app)
+    root = Path("test-artifacts")
+    root.mkdir(parents=True, exist_ok=True)
+    log_path = root / "orchestrator-meta-decision-audit.jsonl"
+    if log_path.exists():
+        log_path.unlink()
+    monkeypatch.setenv("CORTEX_ORCHESTRATOR_META_DECISION_AUDIT_LOG", str(log_path))
+    response = client.post(
+        "/v1/meta-decision/assess",
+        json={
+            "event_id": "evt-1",
+            "entity_id": "node-1",
+            "entity_type": "machine",
+            "novelty_score": 0.9,
+            "graph_score": 0.8,
+            "temporal_score": 0.7,
+            "asset_criticality": 0.95,
+            "blast_radius": 0.85,
+            "crown_jewel": True,
+            "signals": [
+                {
+                    "entity_id": "node-1",
+                    "entity_type": "machine",
+                    "agent_id": "decision",
+                    "specialty": "response_decision",
+                    "risk_signal": 0.95,
+                    "priority": 0.9,
+                    "runtime_trust": 0.5,
+                    "uncertainty": 0.55,
+                    "data_quality": 0.75,
+                    "reasoning_quality": 0.8,
+                },
+                {
+                    "entity_id": "node-1",
+                    "entity_type": "machine",
+                    "agent_id": "remediation",
+                    "specialty": "containment_planning",
+                    "risk_signal": 0.1,
+                    "priority": 0.8,
+                    "runtime_trust": 0.45,
+                    "uncertainty": 0.6,
+                    "data_quality": 0.7,
+                    "reasoning_quality": 0.72,
+                },
+            ],
+        },
+        headers={"x-cortex-internal-token": "cortex-internal-dev-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["accepted"] is True
+    assert body["meta_decision"]["trusted_output"]["deep_analysis_triggered"] is True
+    assert log_path.exists() is True
+
+
+def test_decision_includes_meta_decision_payload() -> None:
+    client = TestClient(app)
+
+    class FakeResponse:
+        def __init__(self, payload: dict[str, object]) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return self._payload
+
+    captured: dict[str, object] = {}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, url: str, json: dict[str, object]):
+            captured["url"] = url
+            captured["json"] = json
+            return FakeResponse({"ok": True})
+
+    import cortex_orchestrator.main as main_module
+
+    main_module.httpx.AsyncClient = FakeAsyncClient
+    response = client.post(
+        "/v1/decision",
+        json={
+            "request_id": "req-1",
+            "task": "quarantine",
+            "payload": "suspicious activity",
+            "risk_level": 5,
+            "actions": ["execute_irreversible_containment"],
+        },
+    )
+    assert response.status_code == 200
+    meta_decision = captured["json"]["params"]["meta_decision"]
+    assert meta_decision["trusted_output"]["deep_analysis_triggered"] is True
+    assert meta_decision["trusted_output"]["selected_agents"] == ["orchestrator"]

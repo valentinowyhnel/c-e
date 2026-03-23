@@ -118,6 +118,7 @@ class RiskEnvelope(BaseModel):
     environment: str = "preprod"
     dry_run: bool = False
     maturity: CapabilityMaturity = CapabilityMaturity.BETA
+    derived_signals: dict[str, Any] = Field(default_factory=dict)
     dependencies: DependencyHealthSnapshot = Field(default_factory=DependencyHealthSnapshot)
     evidences: list[SecurityEvidence] = Field(default_factory=list)
 

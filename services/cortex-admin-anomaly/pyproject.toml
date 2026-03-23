@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cortex-admin-anomaly"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.110.2",
+    "uvicorn[standard]==0.29.0",
+    "pydantic==2.7.1",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest==8.1.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["cortex_admin_anomaly*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100

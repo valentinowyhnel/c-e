@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package cortex.meta_decision.v1;
+
+option go_package = "github.com/cortexlabs/proto/meta_decision/v1;metadecisionv1";
+
+message AgentSignal {
+  string event_id = 1;
+  string task_id = 2;
+  string entity_id = 3;
+  string entity_type = 4;
+  string agent_id = 5;
+  string specialty = 6;
+  double risk_signal = 7;
+  double priority = 8;
+  double runtime_trust = 9;
+  double uncertainty = 10;
+  double data_quality = 11;
+  double reasoning_quality = 12;
+  bool requires_approval = 13;
+  bool success = 14;
+  string explanation = 15;
+  string timestamp = 16;
+}
+
+message DeepAnalysisRequest {
+  string event_id = 1;
+  string entity_id = 2;
+  string agent_id = 3;
+  repeated string reasons = 4;
+  int32 deadline_ms = 5;
+}
+
+message TrustedAgentOutput {
+  map<string, double> weighted_scores = 1;
+  map<string, double> agent_trust_scores = 2;
+  double conflict_score = 3;
+  repeated string selected_agents = 4;
+  bool deep_analysis_triggered = 5;
+  string reasoning_summary = 6;
+}
+
+message MetaDecisionAssessmentRequest {
+  string event_id = 1;
+  string entity_id = 2;
+  string entity_type = 3;
+  double novelty_score = 4;
+  double graph_score = 5;
+  double temporal_score = 6;
+  double asset_criticality = 7;
+  double blast_radius = 8;
+  bool crown_jewel = 9;
+  repeated AgentSignal signals = 10;
+}
+
+message MetaDecisionEvent {
+  string event_id = 1;
+  string entity_id = 2;
+  string entity_type = 3;
+  TrustedAgentOutput trusted_output = 4;
+  repeated DeepAnalysisRequest deep_analysis_requests = 5;
+  bool degraded_mode = 6;
+  string timestamp = 7;
+}

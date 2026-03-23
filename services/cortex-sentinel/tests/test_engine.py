@@ -1,3 +1,4 @@
+import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -96,17 +97,19 @@ class TestIsolationStateMachine:
             assert state.transition_to(target) is False
 
 
-@pytest.mark.asyncio
-async def test_sentinel_publishes_on_cycle():
-    nc = AsyncMock()
-    js = AsyncMock()
-    nc.jetstream = MagicMock(return_value=js)
-    engine = CortexSentinelEngine("node-01", "machine", nc)
-    with patch.object(engine.collector, "collect", return_value=[ev("suspicious_process", "psutil_process", 0.7, 0.7)]):
-        await engine._cycle()
-    topics = [call.args[0] for call in js.publish.call_args_list]
-    assert "cortex.obs.stream" in topics
-    assert "cortex.trust.updates" in topics
+def test_sentinel_publishes_on_cycle():
+    async def run() -> None:
+        nc = AsyncMock()
+        js = AsyncMock()
+        nc.jetstream = MagicMock(return_value=js)
+        engine = CortexSentinelEngine("node-01", "machine", nc)
+        with patch.object(engine.collector, "collect", return_value=[ev("suspicious_process", "psutil_process", 0.7, 0.7)]):
+            await engine._cycle()
+        topics = [call.args[0] for call in js.publish.call_args_list]
+        assert "cortex.obs.stream" in topics
+        assert "cortex.trust.updates" in topics
+
+    asyncio.run(run())
 
 
 def test_plan_validation_forces_prepare_on_high_risk_actions():

@@ -17,6 +17,8 @@ if trivy_path.exists():
         for vuln in result.get("Vulnerabilities", []) or []:
             if vuln.get("Severity") == "CRITICAL":
                 critical += 1
+else:
+    errors.append(f"missing vulnerability report {trivy_path.relative_to(ROOT)}")
 
 if critical > max_critical:
     errors.append(f"critical vulnerabilities {critical} exceed {max_critical}")

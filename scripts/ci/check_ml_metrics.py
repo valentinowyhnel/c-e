@@ -14,7 +14,8 @@ errors: list[str] = []
 if metrics_path.exists():
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
 else:
-    metrics = {"false_positive_rate_estimate": 0.0, "model_confidence": 1.0}
+    metrics = {}
+    errors.append(f"missing metrics file {metrics_path.relative_to(ROOT)}")
 
 fpr = float(metrics.get("false_positive_rate_estimate", 0.0))
 if fpr > maximum_fpr:
@@ -24,4 +25,3 @@ status = "passed" if not errors else "failed"
 REPORT.write_text(json.dumps({"status": status, "metrics": metrics, "errors": errors}, indent=2), encoding="utf-8")
 if errors:
     raise SystemExit(1)
-

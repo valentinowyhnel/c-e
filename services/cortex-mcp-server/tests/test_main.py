@@ -202,3 +202,68 @@ def test_tool_policy_forces_prepare_only_on_dry_run() -> None:
     data = response.json()["result"]
     assert data["status"] == "completed"
     assert data["policy_decision"]["decision"] == "prepare_only"
+
+
+def test_tool_call_propagates_meta_decision() -> None:
+    client = make_client()
+    response = client.post(
+        "/mcp/tools/call",
+        json={
+            "tool": "decision_analyze_response",
+            "params": {"entity_id": "node-1", "entity_type": "machine"},
+            "agent_id": "soc",
+            "agent_scopes": ["read:graph", "admin:write"],
+            "meta_decision": {
+                "event_id": "evt-1",
+                "entity_id": "node-1",
+                "entity_type": "machine",
+                "trusted_output": {
+                    "weighted_scores": {"aggregate_risk": 0.8},
+                    "agent_trust_scores": {"decision": 0.62},
+                    "conflict_score": 0.58,
+                    "selected_agents": ["decision"],
+                    "deep_analysis_triggered": True,
+                    "reasoning_summary": "high conflict",
+                },
+                "deep_analysis_requests": [
+                    {
+                        "event_id": "evt-1",
+                        "entity_id": "node-1",
+                        "agent_id": "decision",
+                        "reasons": ["agent_conflict"],
+                        "deadline_ms": 150,
+                    }
+                ],
+                "audit_log": {"signal_count": 2},
+                "degraded_mode": False,
+            },
+        },
+    )
+    assert response.status_code == 200
+    params = response.json()["result"]["agent_result"]["output"]["params"]
+    assert params["meta_decision"]["trusted_output"]["deep_analysis_triggered"] is True
+
+
+def test_deep_analysis_endpoint_relays_requests() -> None:
+    client = make_client()
+    response = client.post(
+        "/mcp/meta-decision/deep-analysis",
+        json={
+            "requests": [
+                {
+                    "event_id": "evt-2",
+                    "entity_id": "node-2",
+                    "agent_id": "decision",
+                    "reasons": ["critical_asset", "high_novelty"],
+                    "deadline_ms": 150,
+                }
+            ],
+            "context": {"entity_type": "machine", "candidate_action": "quarantine"},
+            "agent_id": "meta_decision_agent",
+            "agent_scopes": ["admin:write"],
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["accepted"] is True
+    assert body["results"][0]["result"]["agent_result"]["output"]["task_type"] == "explain_human_decision"

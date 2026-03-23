@@ -38,45 +38,108 @@ export default function DashboardPage() {
       <SOTPanel />
 
       <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl border border-danger/60 bg-danger/10 p-4 shadow-panel">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <header className="hero-frame panel-sheen rounded-[2rem] p-6 md:p-8">
+          <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
             <div>
-              <div className="font-mono text-xs uppercase tracking-[0.3em] text-red-300">
-                {data.criticalAlerts > 0 ? "ALERTE CRITIQUE" : "SURVEILLANCE ACTIVE"}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="font-mono text-[11px] uppercase tracking-[0.35em] text-cyan-300">
+                  {data.criticalAlerts > 0 ? "Critical Decision Pressure" : "Operational Stability"}
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+                  p99 trust {data.trustEngineLatencyP99}ms
+                </div>
               </div>
-              <h1 className="mt-2 text-3xl font-semibold text-ink">Cortex SOC Console</h1>
+              <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-tight text-ink md:text-5xl">
+                Cortex SOC Console
+                <span className="block text-cyan-200/90">pilotage tactique du trust, des machines et des decisions.</span>
+              </h1>
+              <p className="mt-5 max-w-3xl text-base leading-7 text-muted">
+                Surface operateur pour lire le systeme, arbitrer les approvals, suivre les graphes de privileges
+                et absorber les signaux agentiques sans perdre la latence du fast path.
+              </p>
             </div>
-            <div className="font-mono text-sm text-muted">
-              alertes={data.criticalAlerts} | approvals={data.pendingApprovals} | blocked=
-              {data.sentinelBlocked}
+
+            <div className="grid gap-3 self-start">
+              <div className="rounded-[1.6rem] border border-white/10 bg-black/20 p-4">
+                <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted">Operational pulse</div>
+                <div className="mt-4 grid gap-3">
+                  <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-panel/60 px-4 py-3">
+                    <span className="text-sm text-muted">critical alerts</span>
+                    <span className="font-mono text-xl text-red-200">{data.criticalAlerts}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-panel/60 px-4 py-3">
+                    <span className="text-sm text-muted">pending approvals</span>
+                    <span className="font-mono text-xl text-amber-100">{data.pendingApprovals}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-panel/60 px-4 py-3">
+                    <span className="text-sm text-muted">sentinel blocked</span>
+                    <span className="font-mono text-xl text-cyan-100">{data.sentinelBlocked}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </header>
 
+        <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <div className="rounded-2xl border border-border/70 bg-black/15 px-4 py-3">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">trust</div>
+            <div className="mt-2 text-sm text-ink">engine p99 {data.trustEngineLatencyP99} ms</div>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-black/15 px-4 py-3">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">policy</div>
+            <div className="mt-2 text-sm text-ink">{data.policyDecisionsPerSec} decisions/sec</div>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-black/15 px-4 py-3">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">graph</div>
+            <div className="mt-2 text-sm text-ink">{data.graphNodesTotal.toLocaleString()} nodes</div>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-black/15 px-4 py-3">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">mcp</div>
+            <div className="mt-2 text-sm text-ink">{data.mcpCallsLast1h} calls / 1h</div>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-black/15 px-4 py-3">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">ad sync</div>
+            <div className="mt-2 text-sm text-ink">{data.adSyncDeltaPending} delta pending</div>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-black/15 px-4 py-3">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">maturity</div>
+            <div className="mt-2 text-sm text-ink">{data.capabilityMaturitySummary?.beta ?? 0} beta caps</div>
+          </div>
+        </section>
+
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <KpiCard title="Sessions actives" value={String(data.activeSessionsCount)} />
+          <KpiCard
+            title="Sessions actives"
+            value={String(data.activeSessionsCount)}
+            subtitle="sessions operateur et workflows live"
+            eyebrow="activity"
+          />
           <KpiCard
             title="Trust < 40"
             value={String(data.usersWithLowTrust)}
             tone="warning"
-            subtitle="utilisateurs critiques"
+            subtitle="identites sous seuil critique"
+            eyebrow="exposure"
           />
           <KpiCard
             title="Anomalies"
             value={String(data.criticalAlerts)}
             tone={data.criticalAlerts > 0 ? "danger" : "success"}
-            subtitle="feed agentique"
+            subtitle="signal agrégé du feed agentique"
+            eyebrow="signal"
           />
           <KpiCard
             title="Approbations"
             value={String(data.pendingApprovals)}
             tone="danger"
             subtitle={`${data.approvalsPendingOldest} min plus ancienne`}
+            eyebrow="governance"
           />
         </section>
 
         {data.degradedWarnings?.length ? (
-          <section className="rounded-3xl border border-amber-500/50 bg-amber-500/10 p-4 shadow-panel">
+          <section className="panel-sheen rounded-3xl border border-amber-500/50 bg-amber-500/10 p-4 shadow-panel">
             <div className="font-mono text-xs uppercase tracking-[0.3em] text-amber-200">
               Degraded Warnings
             </div>
@@ -97,39 +160,25 @@ export default function DashboardPage() {
 
         <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <IdentityGraph />
-          <div className="rounded-2xl border bg-panel/80 p-4 shadow-panel">
+          <div className="panel-sheen rounded-[1.8rem] border bg-panel/80 p-5 shadow-panel">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-muted">
               Agentic Snapshot
             </h2>
-            <div className="space-y-3 font-mono text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted">trust latency</span>
-                <span>{data.trustEngineLatencyP99} ms</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">ext_authz latency</span>
-                <span>{data.extAuthzLatencyP99} ms</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">agent tasks / 1h</span>
-                <span>{data.agentTasksLast1h}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">mcp calls observed</span>
-                <span>{data.mcpCallsLast1h}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">graph nodes</span>
-                <span>{data.graphNodesTotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">prepare plans</span>
-                <span>{data.executionModeSummary?.prepare ?? 0}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">beta capabilities</span>
-                <span>{data.capabilityMaturitySummary?.beta ?? 0}</span>
-              </div>
+            <div className="grid gap-3">
+              {[
+                ["trust latency", `${data.trustEngineLatencyP99} ms`],
+                ["ext_authz latency", `${data.extAuthzLatencyP99} ms`],
+                ["agent tasks / 1h", `${data.agentTasksLast1h}`],
+                ["mcp calls observed", `${data.mcpCallsLast1h}`],
+                ["graph nodes", `${data.graphNodesTotal.toLocaleString()}`],
+                ["prepare plans", `${data.executionModeSummary?.prepare ?? 0}`],
+                ["beta capabilities", `${data.capabilityMaturitySummary?.beta ?? 0}`]
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/35 px-4 py-3 font-mono text-sm">
+                  <span className="text-muted">{label}</span>
+                  <span className="text-ink">{value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </section>

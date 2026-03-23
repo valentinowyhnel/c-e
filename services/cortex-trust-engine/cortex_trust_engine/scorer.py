@@ -42,6 +42,7 @@ SOURCE_TRUST = {
     "auditd_connect": 0.8,
     "psutil_process": 0.65,
     "bloodhound": 0.8,
+    "edge_inference": 0.7,
     "mcp": 0.6,
 }
 

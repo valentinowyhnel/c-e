@@ -10,10 +10,22 @@ import pandas as pd
 import torch
 
 from .agents import AnomalyAgent, GraphAgent, SentinelAgent, ThreatHunterAgent, TrustAgent
-from .continuous_learning import ContinuousLearningManager
 from .dataset import simulate_events
 from .features import build_state, extract_features
 from .graph import attach_graph_scores, build_interaction_graph
+from .learning.continuous_learning_engine import ContinuousLearningEngine
+from .meta_decision import (
+    AnalysisFingerprintEngine,
+    AnalysisReuseOrchestrator,
+    AgentTrustRegistry,
+    CaseComplexityEngine,
+    CaseMemoryStore,
+    ConfidenceCalibrationLayer,
+    DecisionMemoryLinker,
+    DecisionTrustEngine,
+    DeepAnalysisProtocol,
+    MetaDecisionAgent,
+)
 from .models import build_default_models
 from .rl_sentinel import ACTIONS, SentinelRL
 
@@ -35,14 +47,43 @@ def build_agents() -> tuple[dict[str, object], dict[str, object]]:
     return agents, models
 
 
+def build_meta_decision_stack() -> tuple[MetaDecisionAgent, AgentTrustRegistry, DecisionTrustEngine, CaseMemoryStore]:
+    registry = AgentTrustRegistry()
+    registry.register_agent("threat_hunter", capabilities={"threat_hunting": 0.9}, specialties={"campaign_score": 0.85}, base_trust=0.62)
+    registry.register_agent("trust", capabilities={"trust_assessment": 0.92}, specialties={"trust_score": 0.9}, base_trust=0.68)
+    registry.register_agent("graph", capabilities={"identity_graph": 0.88}, specialties={"graph_score": 0.88}, base_trust=0.64)
+    registry.register_agent("anomaly", capabilities={"anomaly_detection": 0.91}, specialties={"anomaly_score": 0.9}, base_trust=0.66)
+    decision_trust_engine = DecisionTrustEngine(registry)
+    case_memory_store = CaseMemoryStore()
+    decision_memory_linker = DecisionMemoryLinker(
+        fingerprint_engine=AnalysisFingerprintEngine(),
+        case_memory_store=case_memory_store,
+        reuse_orchestrator=AnalysisReuseOrchestrator(),
+    )
+    meta_decision_agent = MetaDecisionAgent(
+        decision_trust_engine=decision_trust_engine,
+        case_complexity_engine=CaseComplexityEngine(),
+        deep_analysis_protocol=DeepAnalysisProtocol(),
+        confidence_calibration=ConfidenceCalibrationLayer(),
+        decision_memory_linker=decision_memory_linker,
+    )
+    return meta_decision_agent, registry, decision_trust_engine, case_memory_store
+
+
 def run_training(
     episodes: int = 10,
     num_events: int = 120,
     export_dir: str | Path = "cortex_exports",
 ) -> dict[str, object]:
-    learning = ContinuousLearningManager()
     agents, models = build_agents()
     sentinel: SentinelAgent = agents["sentinel"]
+    meta_decision_agent, trust_registry, decision_trust_engine, case_memory_store = build_meta_decision_stack()
+    learning = ContinuousLearningEngine(
+        trust_registry=trust_registry,
+        decision_trust_engine=decision_trust_engine,
+        case_memory_store=case_memory_store,
+        sentinel_rl=sentinel.rl,
+    )
     reward_curve: list[float] = []
     all_rows: list[dict[str, object]] = []
     agent_logs: list[dict[str, object]] = []
@@ -66,7 +107,60 @@ def run_training(
                 "graph_score": models["graph"].score(features),
                 "campaign_score": max(features["campaign_score"], models["hunter"].score(features)),
             }
-            state = build_state(scores)
+            base_priority = _priority_from_state(build_state(scores))
+            other_results = [
+                agents["threat_hunter"].process_event(event),
+                agents["trust"].process_event(event),
+                agents["graph"].process_event(event),
+                agents["anomaly"].process_event(event),
+            ]
+            agent_messages = []
+            for result in other_results:
+                specialty = {
+                    "threat_hunter": "campaign_score",
+                    "trust": "trust_score",
+                    "graph": "graph_score",
+                    "anomaly": "anomaly_score",
+                }[result["agent"]]
+                runtime_trust = max(0.0, min(1.0, 1.0 - abs(float(result["score"]) - scores.get(specialty, 0.5))))
+                trust_registry.update_runtime_trust(result["agent"], runtime_trust)
+                message = agents[result["agent"]].send_message(
+                    "meta_decision_agent",
+                    event["event_id"],
+                    result["score"],
+                    base_priority,
+                    result["explanation"],
+                )
+                agent_messages.append(
+                    message.__dict__
+                    | {
+                        "specialty": specialty,
+                        "runtime_trust": runtime_trust,
+                        "uncertainty": 1.0 - float(result["score"]),
+                        "data_quality": runtime_trust,
+                        "reasoning_quality": 0.55 if result["explanation"] else 0.25,
+                    }
+                )
+            meta_decision = meta_decision_agent.evaluate(
+                event=event,
+                agent_messages=agent_messages,
+                model_scores={
+                    "anomaly": scores["anomaly_score"],
+                    "trust": 1.0 - scores["trust_score"],
+                    "graph": scores["graph_score"],
+                    "hunter": scores["campaign_score"],
+                },
+                identity_context={"source": event["source"], "target": event["target"]},
+                graph_context={"source": event["source"], "target": event["target"], "graph_score": scores["graph_score"]},
+                policy_version="opa:v1",
+                model_versions={name: "default:v1" for name in ["anomaly", "trust", "graph", "hunter"]},
+            )
+            state_scores = dict(scores)
+            state_scores["anomaly_score"] = max(scores["anomaly_score"], meta_decision.weighted_scores.get("anomaly_risk", 0.0))
+            state_scores["trust_score"] = max(0.0, min(1.0, scores["trust_score"] * meta_decision.agent_trust_scores.get("trust", 1.0)))
+            state_scores["graph_score"] = max(scores["graph_score"], meta_decision.weighted_scores.get("graph_risk", 0.0))
+            state_scores["campaign_score"] = max(scores["campaign_score"], meta_decision.weighted_scores.get("threat_hunter_risk", 0.0))
+            state = build_state(state_scores)
             sentinel_result = sentinel.process_event(event, state)
             ground_truth = int(event["label_attack"])
             reward = sentinel.rl.compute_reward(
@@ -83,28 +177,49 @@ def run_training(
             sentinel.rl.store_experience(state, sentinel_result["action_id"], reward, next_state, done=idx == len(episode_events) - 1)
             episode_reward += reward
 
-            other_results = [agents["threat_hunter"].process_event(event), agents["trust"].process_event(event), agents["graph"].process_event(event), agents["anomaly"].process_event(event)]
             predicted_attack = int(sentinel_result["action"] in {"INVESTIGATE", "ESCALATE", "BLOCK"})
             corrected_errors += int(predicted_attack == ground_truth)
-            row_result = event | scores | sentinel_result | {
+            row_result = event | scores | state_scores | sentinel_result | meta_decision.trusted_agent_output | {
                 "pred_attack": predicted_attack,
                 "episode": episode,
                 "episode_error_corrected": corrected_errors,
+                "mda_degraded_mode": meta_decision.degraded_mode,
             }
             all_rows.append(row_result)
+            agent_logs.extend(agent_messages)
+            agent_logs.append({"event_id": event["event_id"], "mda": meta_decision.to_dict()})
+            learning.memory.add(row_result)
+            learning.remember_case(
+                event=event,
+                features=scores,
+                scores=meta_decision.weighted_scores,
+                agents_used=meta_decision.selected_agents,
+                final_decision=sentinel_result["action"],
+                validation="confirmed" if predicted_attack == ground_truth else "pending_review",
+                model_version="anomaly:default:v1|graph:default:v1|hunter:default:v1|trust:default:v1",
+                policy_version="opa:v1",
+                reusability_score=max(0.0, min(1.0, 1.0 - float(event.get("novelty_score", 0.0)))),
+            )
             for result in other_results:
-                msg = agents[result["agent"]].send_message("sentinel", event["event_id"], result["score"], _priority_from_state(state), result["explanation"])
-                agent_logs.append(msg.__dict__)
-            learning.global_memory.add(row_result)
+                learning.update_agent_performance(
+                    agent_id=result["agent"],
+                    specialty={
+                        "threat_hunter": "campaign_score",
+                        "trust": "trust_score",
+                        "graph": "graph_score",
+                        "anomaly": "anomaly_score",
+                    }[result["agent"]],
+                    correct=(predicted_attack == ground_truth),
+                    confidence=float(result["score"]),
+                )
+                learning.adjust_agent_trust(result["agent"])
 
         loss = sentinel.rl.update_policy()
         reward_curve.append(episode_reward)
         sentinel.rl.episode_rewards.append(episode_reward)
-        memory_frame = learning.global_memory.frame()
-        if learning.retrain_if_needed(episode) or learning.detect_drift(memory_frame):
-            learning.update_agents({k: v for k, v in agents.items() if k != "sentinel"}, memory_frame.tail(300))
-        adjusted = learning.adjust_weights({name: model.weights[next(iter(model.weights))] for name, model in models.items()}, reward_curve)
-        agent_logs.append({"episode": episode, "loss": loss, "episode_reward": episode_reward, "adjusted_weights": adjusted})
+        learning.retrain_models(agents=agents, episode=episode)
+        adjusted = {agent_id: trust_registry.get_profile(agent_id).base_trust for agent_id in ["threat_hunter", "trust", "graph", "anomaly"]}
+        agent_logs.append({"episode": episode, "loss": loss, "episode_reward": episode_reward, "adjusted_trust": adjusted})
         if episode_reward > best_reward + 0.05:
             best_reward = episode_reward
             stagnant_episodes = 0

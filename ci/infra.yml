@@ -62,7 +62,7 @@ infra-ephemeral-template:
     paths:
       - artifacts/helm/cortex-ci-smoke.yaml
 
-create-ephemeral-k8s:
+prepare-ephemeral-k8s:
   stage: ephemeral-env
   image: alpine:3.20
   before_script:
@@ -73,4 +73,3 @@ create-ephemeral-k8s:
     when: always
     paths:
       - artifacts/reports/ephemeral-env.json
-

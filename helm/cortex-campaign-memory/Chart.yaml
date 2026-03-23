@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cortex-campaign-memory
+description: Cortex campaign memory deployment
+type: application
+version: 0.1.0
+appVersion: "v2"

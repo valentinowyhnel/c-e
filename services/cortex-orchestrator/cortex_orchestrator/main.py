@@ -2,12 +2,25 @@ import os
 import json
 import hmac
 import hashlib
+import sys
 from pathlib import Path
 from typing import Literal
 
 import httpx
 from fastapi import FastAPI, Header, Request
 from pydantic import BaseModel, Field
+
+ROOT = Path(__file__).resolve().parents[3] / "shared" / "cortex-core"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from cortex_core.meta_decision import (  # noqa: E402
+    AgentSignal,
+    DeepAnalysisRequest,
+    MetaDecisionAssessmentRequest,
+    MetaDecisionEvent,
+    TrustedAgentOutput,
+)
 
 
 class IntentRequest(BaseModel):
@@ -64,6 +77,16 @@ model_registry: dict[str, dict[str, object]] = {}
 
 def _append_model_audit(entry: dict[str, object]) -> None:
     path = os.getenv("CORTEX_ORCHESTRATOR_MODEL_AUDIT_LOG", "").strip()
+    if not path:
+        return
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def _append_meta_decision_audit(entry: dict[str, object]) -> None:
+    path = os.getenv("CORTEX_ORCHESTRATOR_META_DECISION_AUDIT_LOG", "").strip()
     if not path:
         return
     target = Path(path)
@@ -134,6 +157,83 @@ def _evaluate_candidate(req: ModelCandidateRequest) -> dict[str, object]:
         "promotion": promotion,
         "rollback_pointer": req.rollback_pointer,
     }
+
+
+def _clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
+    return max(low, min(high, float(value)))
+
+
+def _assess_meta_decision(req: MetaDecisionAssessmentRequest) -> MetaDecisionEvent:
+    trust_scores: dict[str, float] = {}
+    weighted_total = 0.0
+    trust_total = 0.0
+    raw_scores: list[float] = []
+    selected_agents: list[str] = []
+    for signal in req.signals:
+        specialty_bonus = 0.1 if signal.specialty in {"response_decision", "containment_planning", "identity_graph"} else 0.0
+        trust = _clamp(
+            0.30
+            + 0.24 * signal.runtime_trust
+            + 0.16 * signal.data_quality
+            + 0.16 * signal.reasoning_quality
+            + specialty_bonus
+            - 0.18 * signal.uncertainty
+        )
+        trust_scores[signal.agent_id] = trust
+        raw_scores.append(signal.risk_signal)
+        if trust >= 0.45:
+            weighted_total += signal.risk_signal * trust
+            trust_total += trust
+            selected_agents.append(signal.agent_id)
+    aggregate_risk = _clamp(weighted_total / trust_total) if trust_total else 0.0
+    spread = max(raw_scores) - min(raw_scores) if raw_scores else 0.0
+    mean_signal = sum(raw_scores) / len(raw_scores) if raw_scores else 0.0
+    disagreement = sum(abs(score - mean_signal) for score in raw_scores) / len(raw_scores) if raw_scores else 0.0
+    conflict_score = _clamp(0.6 * spread + 0.4 * disagreement)
+    criticality = _clamp(0.55 * req.asset_criticality + 0.30 * req.blast_radius + 0.15 * float(req.crown_jewel))
+    deep_analysis_reasons: list[str] = []
+    if conflict_score >= 0.55:
+        deep_analysis_reasons.append("agent_conflict")
+    if min(trust_scores.values(), default=1.0) < 0.45:
+        deep_analysis_reasons.append("low_agent_trust")
+    if req.novelty_score >= 0.7:
+        deep_analysis_reasons.append("high_novelty")
+    if criticality >= 0.75:
+        deep_analysis_reasons.append("critical_asset")
+    deep_analysis_triggered = bool(deep_analysis_reasons)
+    trusted_output = TrustedAgentOutput(
+        weighted_scores={"aggregate_risk": aggregate_risk},
+        agent_trust_scores=trust_scores,
+        conflict_score=conflict_score,
+        selected_agents=selected_agents,
+        deep_analysis_triggered=deep_analysis_triggered,
+        reasoning_summary=f"aggregate_risk={aggregate_risk:.3f} conflict={conflict_score:.3f} selected={len(selected_agents)}",
+    )
+    deep_analysis_requests = [
+        DeepAnalysisRequest(
+            event_id=req.event_id,
+            entity_id=req.entity_id,
+            agent_id=agent_id,
+            reasons=deep_analysis_reasons,
+            deadline_ms=150,
+        )
+        for agent_id in selected_agents
+    ] if deep_analysis_triggered else []
+    event = MetaDecisionEvent(
+        event_id=req.event_id,
+        entity_id=req.entity_id,
+        entity_type=req.entity_type,
+        trusted_output=trusted_output,
+        deep_analysis_requests=deep_analysis_requests,
+        audit_log={
+            "signal_count": len(req.signals),
+            "criticality": criticality,
+            "deep_analysis_reasons": deep_analysis_reasons,
+        },
+        degraded_mode=False,
+    )
+    _append_meta_decision_audit(event.model_dump())
+    return event
 
 
 @app.get("/health")
@@ -250,6 +350,37 @@ async def decision(req: IntentRequest) -> dict[str, object]:
                     "payload": req.payload,
                     "risk_level": req.risk_level,
                     "actions": req.actions,
+                    "meta_decision": _assess_meta_decision(
+                        MetaDecisionAssessmentRequest(
+                            event_id=req.request_id,
+                            entity_id=req.request_id,
+                            entity_type="workflow",
+                            novelty_score=min(1.0, req.risk_level / 5.0),
+                            graph_score=min(1.0, len(req.actions) / 5.0),
+                            temporal_score=min(1.0, req.risk_level / 5.0),
+                            asset_criticality=min(1.0, req.risk_level / 5.0),
+                            blast_radius=min(1.0, len(req.actions) / 5.0),
+                            crown_jewel=req.risk_level >= 5,
+                            signals=[
+                                AgentSignal(
+                                    event_id=req.request_id,
+                                    task_id=req.request_id,
+                                    entity_id=req.request_id,
+                                    entity_type="workflow",
+                                    agent_id="orchestrator",
+                                    specialty="response_decision",
+                                    risk_signal=min(1.0, req.risk_level / 5.0),
+                                    priority=min(1.0, len(req.actions) / 5.0),
+                                    runtime_trust=0.72,
+                                    uncertainty=0.35,
+                                    data_quality=0.8,
+                                    reasoning_quality=0.7,
+                                    requires_approval=req.risk_level >= 4,
+                                    explanation="orchestrator_precheck",
+                                )
+                            ],
+                        )
+                    ).model_dump(),
                 },
                 "agent_id": "orchestrator",
                 "agent_scopes": ["admin:write"],
@@ -257,3 +388,17 @@ async def decision(req: IntentRequest) -> dict[str, object]:
         )
         response.raise_for_status()
         return response.json()
+
+
+@app.post("/v1/meta-decision/assess")
+async def assess_meta_decision(
+    req: MetaDecisionAssessmentRequest,
+    x_cortex_internal_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    if not _verify_internal_token(x_cortex_internal_token):
+        return {"accepted": False, "reason": "internal_api_auth_required"}
+    event = _assess_meta_decision(req)
+    return {
+        "accepted": True,
+        "meta_decision": event.model_dump(),
+    }

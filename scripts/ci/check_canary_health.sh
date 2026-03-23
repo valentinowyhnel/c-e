@@ -9,30 +9,23 @@ import sys
 
 source = pathlib.Path(sys.argv[1])
 report = pathlib.Path(sys.argv[2])
-ext_limit = float(sys.argv[3])
-trust_limit = float(sys.argv[4])
 errors = []
 
-if source.exists():
-    payload = json.loads(source.read_text(encoding="utf-8"))
+if not source.exists():
+    errors.append("missing post-deploy production report")
+    payload = {}
 else:
-    payload = {
-        "ext_authz_p99_ms": ext_limit,
-        "trust_engine_p99_ms": trust_limit,
-        "error_budget_burn_rate": 0.0,
-        "healthy": True,
-    }
+    payload = json.loads(source.read_text(encoding="utf-8"))
 
-if float(payload.get("ext_authz_p99_ms", 10**9)) > ext_limit:
-    errors.append("ext_authz p99 above threshold")
-if float(payload.get("trust_engine_p99_ms", 10**9)) > trust_limit:
-    errors.append("trust engine p99 above threshold")
+if payload.get("status") != "passed":
+    errors.append(f"post-deploy verification failed: {payload.get('status', 'unknown')}")
 if not bool(payload.get("healthy", False)):
-    errors.append("canary not healthy")
+    errors.append("post-deploy health checks not green")
+if not isinstance(payload.get("checks"), list) or not payload.get("checks"):
+    errors.append("post-deploy checks missing")
 
 status = "passed" if not errors else "failed"
 report.write_text(json.dumps({"status": status, "observations": payload, "errors": errors}, indent=2), encoding="utf-8")
 if errors:
     raise SystemExit(1)
 PY
-

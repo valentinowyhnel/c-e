@@ -1,6 +1,8 @@
 import json
 import os
 import pathlib
+import subprocess
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 artifacts = ROOT / "artifacts"
@@ -9,16 +11,14 @@ signatures_file = artifacts / "signatures" / "signatures.jsonl"
 report_file = artifacts / "reports" / "signed-artifacts.json"
 report_file.parent.mkdir(parents=True, exist_ok=True)
 
+errors = []
 if not images_file.exists():
-    images_file.parent.mkdir(parents=True, exist_ok=True)
-    inferred = []
-    for path in sorted((ROOT / "services").glob("cortex-*/Dockerfile")):
-        inferred.append(f"{os.getenv('CI_REGISTRY_IMAGE', 'registry.example.com/cortex')}/{path.parent.name}:{os.getenv('CI_COMMIT_SHA', 'dev')}")
-    sentinel_machine = ROOT / "services" / "python" / "cortex-sentinel-machine" / "Dockerfile"
-    if sentinel_machine.exists():
-        inferred.append(f"{os.getenv('CI_REGISTRY_IMAGE', 'registry.example.com/cortex')}/cortex-sentinel-machine:{os.getenv('CI_COMMIT_SHA', 'dev')}")
-    images_file.write_text("\n".join(inferred) + ("\n" if inferred else ""), encoding="utf-8")
-images = [line.strip() for line in images_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    errors.append(f"missing image inventory {images_file.relative_to(ROOT)}")
+    images = []
+else:
+    images = [line.strip() for line in images_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if not images:
+        errors.append("image inventory is empty")
 
 signed = set()
 if signatures_file.exists():
@@ -28,14 +28,36 @@ if signatures_file.exists():
         payload = json.loads(line)
         if payload.get("signed"):
             signed.add(payload["image"])
+else:
+    errors.append(f"missing signatures manifest {signatures_file.relative_to(ROOT)}")
 
 ratio = 1.0 if not images else len([img for img in images if img in signed]) / len(images)
 minimum = float(os.getenv("MIN_SIGNED_ARTIFACTS_RATIO", "1.0"))
-errors = []
 if ratio < minimum:
     errors.append(f"signed artifacts ratio {ratio:.3f} below minimum {minimum:.3f}")
 
+verified: dict[str, str] = {}
+cosign_key = os.getenv("COSIGN_PUBLIC_KEY")
+for image in images:
+    if image not in signed:
+        continue
+    cmd = ["cosign", "verify"]
+    if cosign_key:
+        cmd.extend(["--key", cosign_key])
+    else:
+        cmd.append("--keyless")
+    cmd.append(image)
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    verified[image] = "passed" if proc.returncode == 0 else "failed"
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip().splitlines()
+        message = detail[-1] if detail else "cosign verify failed"
+        errors.append(f"{image}: {message}")
+
 status = "passed" if not errors else "failed"
-report_file.write_text(json.dumps({"status": status, "ratio": ratio, "images": images, "errors": errors}, indent=2), encoding="utf-8")
+report_file.write_text(
+    json.dumps({"status": status, "ratio": ratio, "images": images, "verified": verified, "errors": errors}, indent=2),
+    encoding="utf-8",
+)
 if errors:
     raise SystemExit(1)

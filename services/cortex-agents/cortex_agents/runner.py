@@ -8,6 +8,7 @@ from contextlib import suppress
 from pathlib import Path
 
 from .agents import ADAgent, DecisionAgent, RemediationAgent
+from .signal_export import build_agent_signal
 
 ROOT = Path(__file__).resolve().parents[3] / "shared" / "cortex-core"
 if str(ROOT) not in sys.path:
@@ -85,6 +86,12 @@ async def main() -> None:
             f"{subject}.results",
             result_message.model_dump_json().encode(),
         )
+        signal_payload = build_agent_signal(task, result)
+        if signal_payload.get("entity_id"):
+            await nc.publish(
+                "cortex.agents.signals",
+                json.dumps(signal_payload).encode(),
+            )
         if hasattr(msg, "ack"):
             with suppress(Exception):
                 await msg.ack()

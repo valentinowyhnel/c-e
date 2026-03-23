@@ -28,6 +28,7 @@ from cortex_core.contracts import (  # noqa: E402
     ExecutionGuardrails,
     RiskEnvelope,
 )
+from cortex_core.meta_decision import DeepAnalysisRequest, MetaDecisionEvent  # noqa: E402
 from cortex_policy_engine.engine import PolicyEngine  # noqa: E402
 
 
@@ -36,6 +37,14 @@ class ToolCallRequest(BaseModel):
     params: dict[str, object] = Field(default_factory=dict)
     agent_id: str
     agent_scopes: list[str] = Field(default_factory=list)
+    meta_decision: MetaDecisionEvent | None = None
+
+
+class DeepAnalysisRelayRequest(BaseModel):
+    requests: list[DeepAnalysisRequest] = Field(default_factory=list)
+    context: dict[str, object] = Field(default_factory=dict)
+    agent_id: str = "meta_decision_agent"
+    agent_scopes: list[str] = Field(default_factory=lambda: ["read:graph"])
 
 
 class CompleteRequest(BaseModel):
@@ -249,8 +258,30 @@ def create_app(config: MCPServerConfig | None = None) -> FastAPI:
         if not verdict["allowed"]:
             raise HTTPException(status_code=403, detail=verdict["reason"])
         safe_params = {**req.params, "scopes": req.agent_scopes, "correlation_id": correlation_id}
+        if req.meta_decision is not None:
+            safe_params["meta_decision"] = req.meta_decision.model_dump()
         result = await app.state.cortex.executor.execute_tool(req.tool, safe_params, req.agent_id)
         return {"correlation_id": correlation_id, "result": result, "sentinel": verdict}
+
+    @app.post("/mcp/meta-decision/deep-analysis")
+    async def relay_deep_analysis(req: DeepAnalysisRelayRequest) -> dict[str, object]:
+        results = []
+        for item in req.requests:
+            params = {
+                **req.context,
+                "event_id": item.event_id,
+                "entity_id": item.entity_id,
+                "entity_type": str(req.context.get("entity_type", "unknown")),
+                "deep_analysis_request": item.model_dump(),
+                "execution_mode": "prepare",
+            }
+            result = await app.state.cortex.executor.execute_tool(
+                "decision_explain_human",
+                {**params, "scopes": req.agent_scopes},
+                req.agent_id,
+            )
+            results.append({"request": item.model_dump(), "result": result})
+        return {"accepted": True, "results": results}
 
     @app.post("/mcp/complete")
     async def complete(req: CompleteRequest, request: Request) -> dict[str, object]:

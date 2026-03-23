@@ -12,9 +12,20 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-import structlog
+try:
+    import structlog
+except ImportError:
+    import logging
+
+    class _StructlogShim:
+        @staticmethod
+        def get_logger():
+            return logging.getLogger("cortex-sentinel")
+
+    structlog = _StructlogShim()
 
 from .collectors.psutil_col import CollectedEvent, SentinelCollector
+from .meta_decision import SentinelMetaDecisionBridge
 
 try:
     import cortex_core  # noqa: F401
@@ -269,6 +280,7 @@ class CortexSentinelEngine:
         self.state = EntityState(entity_id=entity_id, entity_type=entity_type)
         self.nats = nats_client
         self.collector = SentinelCollector(entity_id)
+        self.meta_decision = SentinelMetaDecisionBridge()
         self._http = httpx.AsyncClient(base_url=trust_engine_url, timeout=5.0)
         self._running = False
         self._dependency_snapshot = DependencyHealthSnapshot(
@@ -316,6 +328,19 @@ class CortexSentinelEngine:
                 },
             )
         new_score, action, hard_stop, hs_sig = compute_score(self.state, events, context=self._detect_context())
+        meta_decision = self.meta_decision.evaluate(
+            entity_id=self.state.entity_id,
+            state_score=new_score,
+            events=events,
+            context=self._detect_context(),
+        )
+        if meta_decision:
+            aggregate_risk = float(meta_decision["weighted_scores"]["aggregate_risk"])
+            score_shift = min(18.0, aggregate_risk * 18.0)
+            new_score = max(0.0, round(new_score - score_shift, 2))
+            action = _recommend_action(new_score, self.state)
+            if meta_decision["deep_analysis_triggered"] and action in {"prepare_quarantine", "prepare_irreversible_containment"}:
+                action = "issue_sot"
         old_score = self.state.current_score
         self.state.current_score = new_score
         self.state.baseline_score = update_baseline(self.state)
@@ -329,6 +354,7 @@ class CortexSentinelEngine:
                 "action": action,
                 "hard_stop": hard_stop,
                 "hs_signal": hs_sig,
+                "meta_decision": meta_decision,
                 "timestamp": time.time(),
                 "evidences": [
                     {
@@ -342,6 +368,16 @@ class CortexSentinelEngine:
                 ],
             },
         )
+        if meta_decision:
+            await self._publish(
+                "cortex.meta_decision.events",
+                {
+                    "entity_id": self.state.entity_id,
+                    "entity_type": self.state.entity_type,
+                    "meta_decision": meta_decision,
+                    "timestamp": time.time(),
+                },
+            )
         await self._act(action, events, hard_stop, hs_sig)
 
     async def _act(self, action: str, events: list[CollectedEvent], hard_stop: bool, hs_sig: str | None) -> None:

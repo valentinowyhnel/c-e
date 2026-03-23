@@ -537,6 +537,18 @@ Le prompt decrit l'architecture cible, mais plusieurs points devront etre precis
 
 Cortex v2 doit etre implemente comme un systeme multi-agents strictement separe, pilote par un orchestrateur LLM mais garde par des mecanismes deterministes. La decision d'autorisation n'appartient jamais au LLM. Toute action critique reste controlee par Sentinel, audit complet et approbation humaine selon le niveau de risque.
 
+## Extension Meta Decision
+
+Une couche `Meta Decision` complete desormais l'architecture entre `Agents Layer` et `Sentinel`.
+
+- Elle recoit les `agent signals`
+- Elle calcule la confiance agent par agent hors Trust Engine global
+- Elle mesure le `conflict_score`
+- Elle declenche le `deep analysis` seulement si necessaire
+- Elle fournit un `trusted_agent_output` auditables aux couches suivantes
+
+Le detail du flux et des contrats associes est documente dans `docs/META_DECISION_FLOW.md`.
+
 La priorite de mise en oeuvre doit rester :
 
 1. Securite deterministe

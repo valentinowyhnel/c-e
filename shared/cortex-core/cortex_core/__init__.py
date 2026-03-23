@@ -58,3 +58,12 @@ __all__ = [
     "revoke_sot",
     "transition_isolation_state",
 ]
+from .meta_decision import AgentSignal, DeepAnalysisRequest, MetaDecisionAssessmentRequest, MetaDecisionEvent, TrustedAgentOutput
+
+__all__ = [
+    "AgentSignal",
+    "DeepAnalysisRequest",
+    "MetaDecisionAssessmentRequest",
+    "MetaDecisionEvent",
+    "TrustedAgentOutput",
+]
