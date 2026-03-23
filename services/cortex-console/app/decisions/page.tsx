@@ -1,6 +1,7 @@
 "use client";
 
 import { DecisionTheater } from "@/components/decision-theater";
+import { ModelConnectivityPanel } from "@/components/model-connectivity-panel";
 
 export default function DecisionsPage() {
   return (
@@ -12,9 +13,11 @@ export default function DecisionsPage() {
           </div>
           <h1 className="mt-2 text-3xl font-semibold text-ink">Decisions et approvals</h1>
           <p className="mt-2 text-sm text-muted">
-            Vue operateur des arbitrages vLLM, Claude, GPT et interventions humaines.
+            Vue operateur des arbitrages vLLM, Claude, GPT et interventions humaines, avec verification
+            explicite de la connectivite des modeles et de la chaine API pour Claude et ChatGPT.
           </p>
         </div>
+        <ModelConnectivityPanel />
         <DecisionTheater />
       </div>
     </main>
