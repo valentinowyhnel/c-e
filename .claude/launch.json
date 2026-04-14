@@ -1,0 +1,95 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cortex-console",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "cortex-vllm",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_vllm.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"],
+      "port": 8080
+    },
+    {
+      "name": "cortex-trust-engine",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_trust_engine.main:app", "--host", "0.0.0.0", "--port", "8081", "--reload"],
+      "port": 8081
+    },
+    {
+      "name": "cortex-orchestrator",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_orchestrator.main:app", "--host", "0.0.0.0", "--port", "8082", "--reload"],
+      "port": 8082
+    },
+    {
+      "name": "cortex-approval",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_approval.main:app", "--host", "0.0.0.0", "--port", "8083", "--reload"],
+      "port": 8083
+    },
+    {
+      "name": "cortex-audit",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_audit.main:app", "--host", "0.0.0.0", "--port", "8084", "--reload"],
+      "port": 8084
+    },
+    {
+      "name": "cortex-mcp-server",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_mcp_server.main:app", "--host", "0.0.0.0", "--port", "8085", "--reload"],
+      "port": 8085
+    },
+    {
+      "name": "cortex-obs-agent",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_obs_agent.main:app", "--host", "0.0.0.0", "--port", "8086", "--reload"],
+      "port": 8086
+    },
+    {
+      "name": "cortex-edge-inference",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_edge_inference.main:app", "--host", "0.0.0.0", "--port", "8087", "--reload"],
+      "port": 8087
+    },
+    {
+      "name": "cortex-campaign-memory",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_campaign_memory.main:app", "--host", "0.0.0.0", "--port", "8088", "--reload"],
+      "port": 8088
+    },
+    {
+      "name": "cortex-priority-engine",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_priority_engine.main:app", "--host", "0.0.0.0", "--port", "8089", "--reload"],
+      "port": 8089
+    },
+    {
+      "name": "cortex-admin-anomaly",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_admin_anomaly.main:app", "--host", "0.0.0.0", "--port", "8090", "--reload"],
+      "port": 8090
+    },
+    {
+      "name": "cortex-insider-decay",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "cortex_insider_decay.main:app", "--host", "0.0.0.0", "--port", "8091", "--reload"],
+      "port": 8091
+    },
+    {
+      "name": "cortex-sentinel",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "sentinel.main"],
+      "port": 8080
+    },
+    {
+      "name": "cortex-sentinel-machine",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "app.serve"],
+      "port": 18080
+    }
+  ]
+}
